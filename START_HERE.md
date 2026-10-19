@@ -75,7 +75,7 @@ java -jar backend/server/target/auralis-server-0.1.0-SNAPSHOT.jar --spring.profi
 
 ## 7. Установка Android
 
-Скопируйте `release/android/Auralis-Android-Test.apk` на телефон Android7 или новее с arm64-процессором, откройте файл и разрешите установку выбранному файловому менеджеру. После установки откройте Auralis: Metro и Expo Go не нужны. Это тестовая подпись; APK для магазина требует вашего release-ключа. Инструкция собственной сборки и диагностика — `docs/ANDROID_INSTALLATION.md`. Финальный APK установлен и проверен по USB на Samsung Galaxy S21, Android 15; A55 отдельно не проверялся.
+Скопируйте `release/android/Auralis-Android-Test.apk` на телефон Android7 или новее с arm64-процессором, откройте файл и разрешите установку выбранному файловому менеджеру. После установки откройте Auralis: Metro и Expo Go не нужны. Это тестовая подпись; APK для магазина требует вашего release-ключа. Инструкция собственной сборки и диагностика — `docs/ANDROID_INSTALLATION.md`. Серверный режим 0.6.1 проверен по USB на Samsung Galaxy S21, Android 15. APK 0.6.2 установлен, полная проверка нового локального режима пока не завершена; A55 отдельно не проверялся.
 
 ## 8. Подключение телефона
 

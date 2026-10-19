@@ -45,7 +45,8 @@ apps/mobile/.native-template/
 **/*.tsbuildinfo
 
 # Binary installers belong in GitHub Releases
-release/server/
+release/server/*
+!release/server/start-dev.ps1
 release/*.zip
 
 # Raw machine diagnostics stay local; showcase images are selected separately

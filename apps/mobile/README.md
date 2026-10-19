@@ -6,7 +6,7 @@
 
 Из этой папки: `npm ci`, `npm run lint`, `npm run typecheck`, `npm test`. Для разработки — `npm start`; для собственного Android APK из корня репозитория — `./scripts/build-android.ps1 -AllowLocalHttp`. Этот корневой скрипт по умолчанию создаёт автономную тестовую сборку с Android debug-подписью. Для распространения нужны собственные ключи и HTTPS.
 
-Подробные русские инструкции: [Android](../../docs/ANDROID_INSTALLATION.md), [iOS](../../docs/IOS_INSTALLATION.md), [фактические проверки и ограничения](../../docs/MOBILE_TEST_REPORT.md). Исходники сгенерированных Android/Xcode-проектов входят в поставку; build-кэши и ключи не входят. Не запускайте `expo prebuild --clean` поверх них без необходимости: используемый рабочий процесс — `--no-clean`.
+Подробные русские инструкции: [Android](../../docs/ANDROID_INSTALLATION.md), [iOS](../../docs/IOS_INSTALLATION.md), [фактические проверки и ограничения](../../docs/MOBILE_TEST_REPORT.md). Android/Xcode-проекты генерируются командой Expo prebuild; build-кэши и ключи не публикуются.
 
 ## Воспроизведение и настоящий спектр
 
