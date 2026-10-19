@@ -1,0 +1,18 @@
+{
+  "platform": "React Native Web preview / Edge, 390x844",
+  "realBackend": "http://localhost:18080",
+  "checks": [
+    "cinematic launch automatically opens login",
+    "login opens without a GL surface",
+    "real account login and home rendered",
+    "Black Hole animates before playback",
+    "server music plays; Black Hole has no video element",
+    "search screen and empty result rendered",
+    "playlist created through UI and confirmed by real server",
+    "independent speed controls show 100% idle / 75% playing and persist defaults",
+    "all eight themes changed through UI and persisted via sync",
+    "visual background is independent of background audio in shared settings"
+  ],
+  "errors": [],
+  "nativeDeviceTested": false
+}

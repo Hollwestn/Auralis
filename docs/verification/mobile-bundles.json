@@ -1,0 +1,20 @@
+[
+  {
+    "platform": "android",
+    "file": "entry-cb1002d214b084068f3ead4676c1c333.hbc",
+    "sizeBytes": 3218892,
+    "sha256": "8F895892CB35A34D17C8EE8DF3902970A8FB02113E2BE0D47379B90BF0746FB8",
+    "sources": 1580,
+    "bracesSources": 0,
+    "nodeForgeSources": 0
+  },
+  {
+    "platform": "ios",
+    "file": "entry-d035a24487fbf1d1eae91c81ccd591dd.hbc",
+    "sizeBytes": 3231952,
+    "sha256": "9F661ECDCC41FD85927AB13F8D21939B21446EAFC32A6BED57AE3A0B39BD5597",
+    "sources": 1587,
+    "bracesSources": 0,
+    "nodeForgeSources": 0
+  }
+]

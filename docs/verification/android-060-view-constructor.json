@@ -1,0 +1,12 @@
+{
+  "version": "0.6.0",
+  "installedApkSha256": "47bc7de907ecc015ca6f27ae1e3fb4c1d83ed70ebfd2fbfc8cfaa971c60436e7",
+  "exception": "Didn't find a correct constructor for class td1",
+  "obfuscatedClass": "td1",
+  "superclass": "android.view.TextureView",
+  "classDataOffset": 0,
+  "constructorsAbsent": true,
+  "reproducedOnPhysicalDevice": true,
+  "device": "Samsung Galaxy S21 / SM-G991B",
+  "android": "15"
+}

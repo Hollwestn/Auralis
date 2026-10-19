@@ -1,0 +1,56 @@
+{
+  "date": "2026-10-19",
+  "windowsInstalledUserVersionChanged": false,
+  "androidTestSignature": true,
+  "androidDeviceTested": false,
+  "artifacts": [
+    {
+      "sha256": "7F4F1E245F3E0EFFC00C40D2AC8CEC239D947DB6EE1D0031DB84498943CD8E6C",
+      "file": "desktop/Auralis-Setup.exe",
+      "sizeBytes": 121427456
+    },
+    {
+      "sha256": "7F4F1E245F3E0EFFC00C40D2AC8CEC239D947DB6EE1D0031DB84498943CD8E6C",
+      "file": "desktop/Auralis-0.6.1.exe",
+      "sizeBytes": 121427456
+    },
+    {
+      "sha256": "6A6DE1E5B3A083D191348E1C534C3A74F7A1252B25CE63E92934F410AFFC615B",
+      "file": "desktop/Auralis-0.6.1.msi",
+      "sizeBytes": 120799432
+    },
+    {
+      "sha256": "20FAF11F22108DFC880C611BAAF33F34F770DB8684E1110220851250386E1B0A",
+      "file": "desktop/Auralis/Auralis.exe",
+      "sizeBytes": 532480
+    },
+    {
+      "sha256": "D6C00E454550FE906538EE2D5D5AC41E0B842A3B64EAF620569CC2A820B20BDA",
+      "file": "desktop/Auralis/app/auralis-desktop-0.1.0-SNAPSHOT.jar",
+      "sizeBytes": 229668
+    },
+    {
+      "sha256": "08C83E7339936478F7642D504BE96204285C309CED71B71BB0E0A15D0CEF67DB",
+      "file": "desktop/Safe-Update.ps1",
+      "sizeBytes": 4009
+    },
+    {
+      "sha256": "5370071BCEB38EFDB94BFC5665B08B8D7C7B5E08975C171CA985018DEE86FE3A",
+      "file": "android/Auralis-Android-Test.apk",
+      "sizeBytes": 33363584
+    },
+    {
+      "sha256": "51FC1BEC6F09FF887F4C317230C37136591E266A4712DC3B92C9EFA14FD6B4EF",
+      "file": "server/auralis-server.jar",
+      "sizeBytes": 29558321
+    },
+    {
+      "sha256": "D6A180F2A1FE720E08D5D45B8DBD4CC3A0F25441C3A6E87BA8E8BD9DD1699355",
+      "file": "Auralis-Server-Internet.zip",
+      "sizeBytes": 26771682
+    }
+  ],
+  "windowsVersion": "0.6.1",
+  "iosIpaBuilt": false,
+  "androidVersion": "0.6.2"
+}

@@ -1,0 +1,28 @@
+{
+  "version": "0.6.1",
+  "versionCode": 10,
+  "device": "Samsung Galaxy S21 (SM-G991B)",
+  "android": "15",
+  "nativePlaybackState": "PlaybackState {state=PLAYING(3), position=0, buffered position=18100, speed=1.0, updated=53578196, actions=7339995, custom actions=[], active item id=0, error=null}\r",
+  "emptyBufferErrorAbsent": true,
+  "sceneClockIdle": 0,
+  "sceneClockPlaying": 0,
+  "gpuCrop": [
+    180,
+    500,
+    900,
+    1480
+  ],
+  "musicFlashDifferenceMeanRgb": [
+    2.931519746787604,
+    1.3735185185185186,
+    2.523176020408163,
+    3.8250722789115645,
+    2.647257180650038,
+    5.580832860922147,
+    5.004224300831443,
+    0.5969241307634164
+  ],
+  "realPcmResponseWithFrozenSceneClock": true,
+  "appAliveAfterPause": true
+}

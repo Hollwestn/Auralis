@@ -1,0 +1,22 @@
+{
+  "version": "0.3.1",
+  "shaderSha256": "6E548665DE73AE574AA980346CBF32C13AC9945010D3649FDE6F42C53EECC4D3",
+  "classicFilamentFormulaRestored": true,
+  "sceneDimensionsUnchanged": {
+    "desktopHero": 510,
+    "mobileHero": 490
+  },
+  "blackHoleGeometryAffectedByBass": false,
+  "blackHoleFlashDifference": 5136065,
+  "clickEffects": false,
+  "otherSevenModesUnchanged": true,
+  "javaTests": 52,
+  "mobileNodeTests": 10,
+  "nativePcmTests": 2,
+  "shaderModes": 8,
+  "qualityViewportVariants": 48,
+  "packagedOpenGlStartup": true,
+  "androidSourceFiles": 32,
+  "actualApkSourceMapCheckedFiles": 7,
+  "androidDeviceTested": false
+}

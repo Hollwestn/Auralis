@@ -1,0 +1,21 @@
+{
+  "testedAt" : "2026-10-18T06:20:33.077675Z",
+  "server" : "Actual packaged Spring Boot JAR on loopback18081 with H2",
+  "client" : "Actual Desktop ServerClient multipart uploads; real tagged WAV with generated PNG/JPEG, authenticated raw HTTP cover responses",
+  "checks" : {
+    "png_real_embedded_cover_url" : "PASS",
+    "png_real_http_exact_original_bytes_and_mime" : "PASS",
+    "png_private_cache_and_nosniff" : "PASS",
+    "png_anonymous_denied_401" : "PASS",
+    "png_foreign_account_denied_404" : "PASS",
+    "jpg_real_embedded_cover_url" : "PASS",
+    "jpg_real_http_exact_original_bytes_and_mime" : "PASS",
+    "jpg_private_cache_and_nosniff" : "PASS",
+    "jpg_anonymous_denied_401" : "PASS",
+    "jpg_foreign_account_denied_404" : "PASS",
+    "no_embedded_art_is_null" : "PASS",
+    "no_embedded_art_endpoint_404" : "PASS",
+    "account_cover_cache_removed" : "PASS"
+  },
+  "checkCount" : 13
+}

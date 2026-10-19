@@ -1,0 +1,69 @@
+{
+  "criticalFiles": {
+    "Auralis.exe": {
+      "sha256": "20FAF11F22108DFC880C611BAAF33F34F770DB8684E1110220851250386E1B0A",
+      "status": "PASS"
+    },
+    "app/auralis-desktop-0.1.0-SNAPSHOT.jar": {
+      "sha256": "D6C00E454550FE906538EE2D5D5AC41E0B842A3B64EAF620569CC2A820B20BDA",
+      "status": "PASS"
+    },
+    "app/lib/audio-core-0.1.0-SNAPSHOT.jar": {
+      "sha256": "F7A8D5534A9947057F2687A1389A92AC7954A1C8F649E6D554829C4069463972",
+      "status": "PASS"
+    },
+    "app/lib/javafx-graphics-25.0.2-win.jar": {
+      "sha256": "EEEF8F88B6862495D923A34F62F3015EBC462435F09AE846388A666DBB352A48",
+      "status": "PASS"
+    },
+    "app/tools/ffmpeg.exe": {
+      "sha256": "24F6A7A96A1914012ACE626ECD0E038EA0DE2C7F4F8556AA667EDD4557FE60DB",
+      "status": "PASS"
+    },
+    "app/tools/ffprobe.exe": {
+      "sha256": "295A8938D7F00C62E29B4FD6766ABB1EAB75A95A53E4B108B66DDDC9E85A09FC",
+      "status": "PASS"
+    },
+    "runtime/bin/server/jvm.dll": {
+      "sha256": "39BD01C5E6D32F96CF37AD673B292B4142CCC33ACE90B4CF2FC929728328152D",
+      "status": "PASS"
+    },
+    "app/lib/lwjgl-3.4.3.jar": {
+      "sha256": "46EECA5471833C3CF5DA3C1DA015B41E3BB3EB16DD3DA03F366886DA10096751",
+      "status": "PASS"
+    },
+    "app/lib/lwjgl-glfw-3.4.3.jar": {
+      "sha256": "2A60DBE93711632129A2CE6AA7E073AA58FA5450A88CDE48A6AF0A4DFEED606D",
+      "status": "PASS"
+    },
+    "app/lib/lwjgl-opengl-3.4.3.jar": {
+      "sha256": "A92CF30F25B6FB6066F3508511F83C5C4FE2A0CFF14FC2E7373BC1F6C726374F",
+      "status": "PASS"
+    },
+    "app/lib/lwjgl-3.4.3-natives-windows.jar": {
+      "sha256": "19949BCA7B780F55E5D2DB12AC061A7657A4C1B7C860C30607F5406E7017AA2B",
+      "status": "PASS"
+    },
+    "app/lib/lwjgl-glfw-3.4.3-natives-windows.jar": {
+      "sha256": "DE2826D6BC8E73127B42250A282CBFCF91B3C3435EDF7F9FD16AFCABC25E88EC",
+      "status": "PASS"
+    },
+    "app/lib/lwjgl-opengl-3.4.3-natives-windows.jar": {
+      "sha256": "0E082B9203CA4112C740735789CC4DD9DCAF2032212B64BA9089AC7DCA035A40",
+      "status": "PASS"
+    }
+  },
+  "installation": "NOT_RUN_EXISTING_AURALIS_REGISTERED",
+  "fileCount": 200,
+  "uiDatabaseDialogsChecked": [
+    "WelcomeDlg",
+    "InstallDirDlg",
+    "ProgressDlg",
+    "ExitDialog"
+  ],
+  "msi": "Auralis-0.6.1.msi",
+  "date": "2026-10-19",
+  "existingInstallationChanged": false,
+  "fixtureImport": "PASS",
+  "extractedApplicationLaunchWithBundledRuntimeAndFfmpeg": "PASS"
+}

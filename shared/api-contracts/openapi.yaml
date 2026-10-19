@@ -1,0 +1,926 @@
+openapi: "3.0.3"
+info:
+  title: "Auralis personal music server"
+  version: "0.1.0"
+  description: "User-isolated catalog. Empty on first launch. Explicit lawful uploads only. See docs/API_SPEC.md for constraints."
+servers:
+  - url: "/api/v1"
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      summary: "Database health"
+      responses:
+        "200":
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                type: "object"
+                properties:
+                  status:
+                    type: "string"
+                  service:
+                    type: "string"
+                  apiVersion:
+                    type: "string"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+      security: []
+  /auth/register:
+    post:
+      summary: "Create account"
+      responses:
+        "200":
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Register"
+      security: []
+  /auth/login:
+    post:
+      summary: "Login"
+      responses:
+        "200":
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Session"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Login"
+      security: []
+  /auth/logout:
+    post:
+      summary: "Revoke current token"
+      responses:
+        "200":
+          description: "Success"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+  /account:
+    get:
+      summary: "Current user"
+      responses:
+        "200":
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+    delete:
+      summary: "Delete account and server media"
+      responses:
+        "200":
+          description: "Success"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+  /tracks:
+    get:
+      summary: "Search own catalog"
+      responses:
+        "200":
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/Track"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+      parameters:
+        - name: "q"
+          in: "query"
+          schema:
+            type: "string"
+        - name: "offset"
+          in: "query"
+          schema:
+            type: "integer"
+            minimum: 0
+            default: 0
+        - name: "limit"
+          in: "query"
+          schema:
+            type: "integer"
+            minimum: 1
+            maximum: 1000
+            default: 200
+  /tracks/{id}:
+    parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+    get:
+      summary: "Get own track"
+      responses:
+        "200":
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Track"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+    delete:
+      summary: "Delete own track"
+      responses:
+        "200":
+          description: "Success"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+  /tracks/{id}/stream:
+    parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+    get:
+      summary: "Stream original audio using bounded 64 KiB buffer"
+      parameters:
+        - name: "Range"
+          in: "header"
+          schema:
+            type: "string"
+        - name: "If-Range"
+          in: "header"
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "Full audio"
+          content:
+            audio/*:
+              schema:
+                type: "string"
+                format: "binary"
+        "206":
+          description: "Single byte range; Content-Range returned"
+        "401":
+          description: "Login required"
+        "404":
+          description: "Track not owned or missing"
+        "416":
+          description: "Invalid or unsatisfiable range"
+    head:
+      summary: "Same headers without audio body"
+      responses:
+        "200":
+          description: "Full content headers"
+        "206":
+          description: "Range headers"
+        "416":
+          description: "Invalid range"
+  /catalog/upload:
+    post:
+      summary: "Explicit upload, duplicate detected by SHA-256"
+      responses:
+        "200":
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Track"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: "object"
+              properties:
+                file:
+                  type: "string"
+                  format: "binary"
+                title:
+                  type: "string"
+                artist:
+                  type: "string"
+                album:
+                  type: "string"
+                genre:
+                  type: "string"
+              required:
+                - "file"
+  /catalog/import:
+    post:
+      summary: "Administrator explicit import under configured root"
+      responses:
+        "200":
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                type: "object"
+                properties:
+                  tracks:
+                    type: "array"
+                    items:
+                      $ref: "#/components/schemas/Track"
+                  rejected:
+                    type: "array"
+                    items:
+                      type: "string"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: "object"
+              properties:
+                path:
+                  type: "string"
+              required:
+                - "path"
+      description: "Disabled by default. Requires AURALIS_IMPORT_ROOT and AURALIS_IMPORT_ADMIN_USER_ID equal to the immutable authenticated account id from GET /account. Email does not authorize import; removed AURALIS_IMPORT_ADMIN_EMAIL has no effect."
+  /favorites:
+    get:
+      summary: "Own favorite tracks"
+      responses:
+        "200":
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/Track"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+  /favorites/{id}:
+    parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+    put:
+      summary: "Favorite a track, idempotent"
+      responses:
+        "200":
+          description: "Success"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+    delete:
+      summary: "Unfavorite track"
+      responses:
+        "200":
+          description: "Success"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+  /playlists:
+    get:
+      summary: "Own playlists"
+      responses:
+        "200":
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/Playlist"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+    post:
+      summary: "Create playlist"
+      responses:
+        "200":
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Playlist"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlaylistInput"
+  /playlists/{id}:
+    parameters:
+      - name: "id"
+        in: "path"
+        required: true
+        schema:
+          type: "string"
+    put:
+      summary: "Replace playlist and ordered tracks"
+      responses:
+        "200":
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Playlist"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+        "409":
+          description: "Playlist version changed; remote playlist remains intact."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PlaylistInput"
+    delete:
+      summary: "Delete playlist"
+      responses:
+        "200":
+          description: "Success"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+  /history:
+    get:
+      summary: "Recent history"
+      responses:
+        "200":
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/History"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+      parameters:
+        - name: "limit"
+          in: "query"
+          schema:
+            type: "integer"
+            default: 200
+            minimum: 1
+            maximum: 1000
+        - name: "offset"
+          in: "query"
+          schema:
+            type: "integer"
+            default: 0
+            minimum: 0
+    post:
+      summary: "Record actual listening"
+      responses:
+        "200":
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/History"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+        "409":
+          description: "Idempotency eventId already used for a different event."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HistoryInput"
+    delete:
+      summary: "Delete all listening history"
+      responses:
+        "200":
+          description: "Success"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+  /preferences:
+    get:
+      summary: "Get musical preferences"
+      responses:
+        "200":
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Preference"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+    put:
+      summary: "Replace preferences"
+      responses:
+        "200":
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Preference"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Preference"
+  /feedback:
+    post:
+      summary: "React to track or block artist"
+      responses:
+        "200":
+          description: "Success"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Feedback"
+  /wave:
+    get:
+      summary: "Explainable content recommendations"
+      responses:
+        "200":
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                type: "array"
+                items:
+                  $ref: "#/components/schemas/Recommendation"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+      parameters:
+        - name: "mode"
+          in: "query"
+          schema:
+            type: "string"
+            enum:
+              - "MY_WAVE"
+              - "DISCOVERY"
+              - "FAVORITES"
+              - "FOCUS"
+              - "ENERGY"
+              - "NIGHT"
+              - "RELAX"
+              - "FAMILIAR"
+            default: "MY_WAVE"
+        - name: "limit"
+          in: "query"
+          schema:
+            type: "integer"
+            minimum: 1
+            maximum: 100
+            default: 30
+  /sync:
+    get:
+      summary: "Get account device state"
+      responses:
+        "200":
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sync"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+    put:
+      summary: "Replace state if version matches; otherwise 409"
+      responses:
+        "200":
+          description: "Success"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Sync"
+        "400":
+          description: "Invalid request"
+        "401":
+          description: "Bearer token required"
+        "409":
+          description: "Version conflict; fetch current state and retry"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SyncInput"
+  /tracks/{id}/cover:
+    get:
+      summary: "Private validated embedded PNG/JPEG cover"
+      description: "Bearer ownership required. Embedded PNG/JPEG only, at most 5 MiB and 2048 pixels per dimension. Missing/invalid art and foreign tracks return 404. Extracted lazily for existing tracks and cached in the account storage."
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "Original validated image bytes"
+          headers:
+            Cache-Control:
+              schema:
+                type: "string"
+              example: "private, max-age=86400"
+            X-Content-Type-Options:
+              schema:
+                type: "string"
+              example: "nosniff"
+          content:
+            image/png:
+              schema:
+                type: "string"
+                format: "binary"
+            image/jpeg:
+              schema:
+                type: "string"
+                format: "binary"
+        "401":
+          description: "Bearer token required"
+        "404":
+          description: "Track not owned, missing or without accepted embedded art"
+    head:
+      summary: "Private cover headers"
+      description: "Bearer ownership required. Embedded PNG/JPEG only, at most 5 MiB and 2048 pixels per dimension. Missing/invalid art and foreign tracks return 404. Extracted lazily for existing tracks and cached in the account storage."
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          schema:
+            type: "string"
+      responses:
+        "200":
+          description: "Image headers; no response body"
+          headers:
+            Cache-Control:
+              schema:
+                type: "string"
+              example: "private, max-age=86400"
+            X-Content-Type-Options:
+              schema:
+                type: "string"
+              example: "nosniff"
+        "401":
+          description: "Bearer token required"
+        "404":
+          description: "Track not owned, missing or without accepted embedded art"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: "http"
+      scheme: "bearer"
+      bearerFormat: "opaque random token"
+  schemas:
+    User:
+      type: "object"
+      properties:
+        id:
+          type: "string"
+        email:
+          type: "string"
+          format: "email"
+        displayName:
+          type: "string"
+      required:
+        - "id"
+        - "email"
+        - "displayName"
+    Session:
+      type: "object"
+      properties:
+        token:
+          type: "string"
+        user:
+          $ref: "#/components/schemas/User"
+      required:
+        - "token"
+        - "user"
+    Register:
+      type: "object"
+      properties:
+        email:
+          type: "string"
+          format: "email"
+          maxLength: 254
+        password:
+          type: "string"
+          minLength: 10
+          maxLength: 128
+        displayName:
+          type: "string"
+          minLength: 1
+          maxLength: 100
+      required:
+        - "email"
+        - "password"
+        - "displayName"
+    Login:
+      type: "object"
+      properties:
+        email:
+          type: "string"
+        password:
+          type: "string"
+      required:
+        - "email"
+        - "password"
+    Track:
+      type: "object"
+      properties:
+        id:
+          type: "string"
+        title:
+          type: "string"
+        artist:
+          type: "string"
+        album:
+          type: "string"
+        genre:
+          type: "string"
+        durationSeconds:
+          type: "number"
+        sizeBytes:
+          type: "integer"
+          format: "int64"
+        mimeType:
+          type: "string"
+        source:
+          type: "string"
+          enum:
+            - "SERVER"
+        coverUrl:
+          type: "string"
+          nullable: true
+          description: "Root-relative bearer-protected /api/v1/tracks/{id}/cover when validated embedded PNG/JPEG exists; null otherwise."
+      required:
+        - "id"
+        - "title"
+        - "artist"
+        - "album"
+        - "genre"
+        - "durationSeconds"
+        - "sizeBytes"
+        - "mimeType"
+        - "source"
+    Playlist:
+      type: "object"
+      properties:
+        id:
+          type: "string"
+        name:
+          type: "string"
+        trackIds:
+          type: "array"
+          items:
+            type: "string"
+        updatedAt:
+          type: "string"
+          format: "date-time"
+        version:
+          type: "integer"
+          format: "int64"
+          minimum: 0
+      required:
+        - "id"
+        - "name"
+        - "trackIds"
+        - "updatedAt"
+        - "version"
+    PlaylistInput:
+      type: "object"
+      properties:
+        name:
+          type: "string"
+          minLength: 1
+          maxLength: 200
+        trackIds:
+          type: "array"
+          maxItems: 10000
+          items:
+            type: "string"
+        version:
+          type: "integer"
+          format: "int64"
+          minimum: 0
+          description: "Optional expected version. Stale version returns 409 without changing the playlist."
+      required:
+        - "name"
+    HistoryInput:
+      type: "object"
+      properties:
+        trackId:
+          type: "string"
+        playedSeconds:
+          type: "number"
+          minimum: 0
+          maximum: 86400
+        completed:
+          type: "boolean"
+        skipped:
+          type: "boolean"
+        eventId:
+          type: "string"
+          pattern: "^[A-Za-z0-9._:-]{1,100}$"
+          description: "Stable per-user idempotency key. Repeating the same event returns its original ID; different payload with this key returns 409."
+        playedAt:
+          type: "string"
+          format: "date-time"
+          description: "Original event timestamp, optional. UTC >=1970 and no more than five minutes in the future. Stored with microsecond precision."
+      required:
+        - "trackId"
+        - "playedSeconds"
+    History:
+      type: "object"
+      properties:
+        id:
+          type: "string"
+        trackId:
+          type: "string"
+        playedSeconds:
+          type: "number"
+        completed:
+          type: "boolean"
+        skipped:
+          type: "boolean"
+        playedAt:
+          type: "string"
+          format: "date-time"
+        eventId:
+          type: "string"
+          nullable: true
+    Preference:
+      type: "object"
+      properties:
+        genres:
+          type: "array"
+          items:
+            type: "string"
+        artists:
+          type: "array"
+          items:
+            type: "string"
+      required:
+        - "genres"
+        - "artists"
+    Feedback:
+      type: "object"
+      properties:
+        trackId:
+          type: "string"
+        action:
+          type: "string"
+          enum:
+            - "LIKE"
+            - "DISLIKE"
+            - "MORE"
+            - "LESS"
+            - "BLOCK_ARTIST"
+            - "UNBLOCK_ARTIST"
+      required:
+        - "trackId"
+        - "action"
+    Recommendation:
+      type: "object"
+      properties:
+        track:
+          $ref: "#/components/schemas/Track"
+        score:
+          type: "number"
+        reasons:
+          type: "array"
+          items:
+            type: "string"
+    Sync:
+      type: "object"
+      properties:
+        version:
+          type: "integer"
+          format: "int64"
+        settings:
+          type: "object"
+          additionalProperties: true
+        playback:
+          $ref: "#/components/schemas/Playback"
+        updatedAt:
+          type: "string"
+          format: "date-time"
+    SyncInput:
+      type: "object"
+      properties:
+        version:
+          type: "integer"
+          minimum: 0
+        settings:
+          type: "object"
+          additionalProperties: true
+        playback:
+          $ref: "#/components/schemas/Playback"
+      required:
+        - "version"
+        - "settings"
+        - "playback"
+    Playback:
+      type: "object"
+      additionalProperties: true
+      properties:
+        trackId:
+          type: "string"
+          nullable: true
+        positionSeconds:
+          type: "number"
+          minimum: 0
+        queue:
+          type: "array"
+          maxItems: 1000
+          items:
+            type: "string"
+          description: "Complete ordered server track IDs; duplicates retained."
+        queueIndex:
+          type: "integer"
+          minimum: -1
+          description: "Index of current occurrence; -1 only for empty queue and null trackId."
+        playing:
+          type: "boolean"
+        shuffle:
+          type: "boolean"
+        repeat:
+          type: "string"
+          enum:
+            - "OFF"
+            - "ALL"
+            - "ONE"
+        device:
+          type: "string"
+        source:
+          type: "string"

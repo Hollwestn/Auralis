@@ -1,0 +1,28 @@
+server:
+  address: ${AURALIS_BIND:127.0.0.1}
+  port: ${PORT:8080}
+  error:
+    include-message: never
+    include-stacktrace: never
+spring:
+  application:
+    name: auralis-server
+  datasource:
+    url: ${AURALIS_DB_URL:jdbc:postgresql://localhost:5432/auralis}
+    username: ${AURALIS_DB_USER:auralis}
+    password: ${AURALIS_DB_PASSWORD:}
+  servlet:
+    multipart:
+      max-file-size: 300MB
+      max-request-size: 301MB
+  threads:
+    virtual:
+      enabled: true
+  flyway:
+    enabled: true
+auralis:
+  storage: ${AURALIS_STORAGE:./data/music}
+  import-root: ${AURALIS_IMPORT_ROOT:}
+  import-admin-user-id: ${AURALIS_IMPORT_ADMIN_USER_ID:}
+  token-days: 30
+  max-user-bytes: ${AURALIS_MAX_USER_BYTES:21474836480}

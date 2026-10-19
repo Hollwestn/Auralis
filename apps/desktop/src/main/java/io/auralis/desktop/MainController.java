@@ -1,0 +1,350 @@
+package io.auralis.desktop;
+
+import io.auralis.core.library.LibraryService;
+import io.auralis.core.library.LibraryService.Reaction;
+import io.auralis.core.model.*;
+import io.auralis.core.recommendation.RecommendationService;
+import io.auralis.desktop.playback.PlaybackService;
+import io.auralis.desktop.ui.*;
+import io.auralis.desktop.visualization.VisualizerPane;
+import javafx.application.Platform;
+import javafx.beans.property.SimpleStringProperty;
+import javafx.collections.*;
+import javafx.fxml.FXML;
+import javafx.geometry.*;
+import javafx.scene.*;
+import javafx.scene.control.*;
+import javafx.scene.image.*;
+import javafx.scene.input.*;
+import javafx.scene.layout.*;
+import javafx.stage.*;
+import java.nio.file.*;
+import java.util.*;
+import java.util.concurrent.*;
+import java.util.function.*;
+import static io.auralis.desktop.ui.Views.*;
+
+public final class MainController implements AutoCloseable {
+    @FXML private BorderPane root;
+    @FXML private VBox sidebar,playlistNav,advancedNav,rightDock,dockQueue;
+    @FXML private StackPane pageHost,coverHost,dockCover,workspaceStack;
+    @FXML private Pane ambientHost;
+    @FXML private ScrollPane rightDockScroll;
+    @FXML private HBox volumeGroup;
+    @FXML private Label breadcrumb,statusLabel,connectionLabel,trackTitle,trackArtist,timeLabel;
+    @FXML private ProgressIndicator busy;
+    @FXML private TextField searchField;
+    @FXML private Slider seek,volume;
+    @FXML private Button playButton,likeButton,shuffleButton,repeatButton,homeNav;
+    @FXML private Button dockPlayButton,dockLikeButton;
+    @FXML private Label dockTitle,dockArtist,dockQuality;
+    private LibraryService library;
+    private ExecutorService worker;
+    private Stage stage;
+    private PlaybackService playback;
+    private List<Track> tracks=List.of();
+    private List<Playlist> playlists=List.of();
+    private Set<String> favorites=Set.of();
+    private List<Track> recentlyPlayed=List.of();
+    private List<RecommendationService.Recommendation> homeRecommendations=List.of();
+    private Map<String,String> settings=new HashMap<>();
+    private Runnable refreshPage=this::showHome;
+    private boolean reduced,advanced,seeking;
+    private boolean eqEnabled=true;
+    private double playbackRate=1,playbackBalance;
+    private Theme theme=Theme.OBSIDIAN_YELLOW;
+    private final VisualizerPane visualizer=new VisualizerPane();
+    private final AmbientBackdrop backdrop=new AmbientBackdrop();
+    private VisualizerPane.Mode visualMode=VisualizerPane.Mode.BLACK_HOLE;
+    private VisualizerPane.Quality visualQuality=VisualizerPane.Quality.MEDIUM;
+    private boolean visualEnabled=true,backgroundEnabled=true,animationsEnabled=true,visualFeatured;
+    private double visualIntensity=.9,visualIdleSpeed=1,visualPlayingSpeed=.75;
+    private int visualFps=45;
+    private String currentSection="Главная";
+    private String activePlaylist;
+    private double actualListened,lastTick;
+    private Track previousTrack;
+    private int pending;
+    private RecommendationService.WaveMode waveMode;
+    private EditorView editor;
+    private javafx.animation.Timeline saveTimer;
+    public void attach(LibraryService library,ExecutorService worker,Stage stage){
+        this.library=library;this.worker=worker;this.stage=stage;this.playback=new PlaybackService(worker,library.dataDirectory().resolve("playback-cache"));
+        for(String key:List.of("theme","reducedMotion","advanced","onboarded","genres","artists","lastTrack","lastPosition","serverUrl","language","volume"))settings.put(key,library.setting(key,key.equals("genres")||key.equals("artists")?library.setting("preferences."+key,""):""));
+        try{theme=Theme.valueOf(settings.get("theme"));}catch(Exception ignored){}
+        if(!library.setting("design.version","").equals("2")){setting("legacy.theme",theme.name());theme=Theme.OBSIDIAN_YELLOW;setting("theme",theme.name());setting("design.version","2");}
+        loadVisualSettings();applyTheme(theme);
+        ambientHost.getChildren().add(backdrop);backdrop.widthProperty().bind(ambientHost.widthProperty());backdrop.heightProperty().bind(ambientHost.heightProperty());
+        root.addEventFilter(MouseEvent.MOUSE_MOVED,e->{var point=ambientHost.sceneToLocal(e.getSceneX(),e.getSceneY());backdrop.setPointer(point.getX()/Math.max(1,ambientHost.getWidth()),point.getY()/Math.max(1,ambientHost.getHeight()));});
+        stage.iconifiedProperty().addListener((o,a,b)->updateVisualState());stage.widthProperty().addListener((o,a,b)->updateLayout());
+        root.applyCss();root.lookupAll(".button").forEach(node->{if(node instanceof Button button&&button.getUserData() instanceof String icon)button.setGraphic(Icons.of(icon,button==playButton||button==dockPlayButton?20:18));});
+        playback.setSpectrumListener((time,length,magnitudes,phases)->{visualizer.acceptSpectrum(magnitudes,time);backdrop.acceptSpectrum(magnitudes);});
+        reduced=Boolean.parseBoolean(settings.get("reducedMotion"));advanced=Boolean.parseBoolean(settings.get("advanced"));updateAdvanced();
+        playback.onError(this::error);playback.onFinished(t->{recordListen(false);if(waveMode!=null&&!playback.queue().isEmpty()&&playback.queue().getLast().id().equals(t.id()))refillWave();});
+        playback.volumeProperty().bindBidirectional(volume.valueProperty());try{volume.setValue(Double.parseDouble(settings.get("volume")));}catch(Exception ignored){}
+        eqEnabled=Boolean.parseBoolean(library.setting("eq.enabled","true"));playback.setEqEnabled(eqEnabled);
+        for(int i=0;i<10;i++){settings.put("eq.saved."+i,library.setting("eq.saved."+i,"0"));try{playback.setGain(i,Double.parseDouble(library.setting("eq."+i,"0")));}catch(Exception ignored){}}
+        playback.currentProperty().addListener((o,old,current)->{if(old!=null)recordListen(true);previousTrack=current;actualListened=0;lastTick=0;updateCurrent(current);});
+        playback.playingProperty().addListener((o,a,b)->{playButton.setGraphic(Icons.of(b?"pause":"play",20));dockPlayButton.setGraphic(Icons.of(b?"pause":"play",20));visualizer.setPlaying(b);backdrop.setPlaying(b);});
+        playback.positionProperty().addListener((o,a,b)->{if(playback.playingProperty().get()&&b.doubleValue()>=lastTick&&b.doubleValue()-lastTick<2)actualListened+=b.doubleValue()-lastTick;lastTick=b.doubleValue();if(!seeking)seek.setValue(b.doubleValue());updateTime();});
+        playback.durationProperty().addListener((o,a,b)->{seek.setMax(Math.max(1,b.doubleValue()));updateTime();});
+        seek.setOnMousePressed(e->seeking=true);seek.setOnMouseReleased(e->{playback.seek(seek.getValue());seeking=false;});seek.setOnKeyReleased(e->playback.seek(seek.getValue()));
+        searchField.textProperty().addListener((o,a,b)->{if(b.isBlank()){refreshPage.run();return;}activePlaylist=null;showTrackPage("Поиск", "Результаты в вашей коллекции",tracks.stream().filter(t->(t.title()+" "+t.artist()+" "+t.album()+" "+t.genre()).toLowerCase(Locale.ROOT).contains(b.toLowerCase(Locale.ROOT))).toList());});
+        root.setOnDragOver(e->{if(e.getDragboard().hasFiles()){e.acceptTransferModes(TransferMode.COPY);e.consume();}});root.setOnDragDropped(e->{if(e.getDragboard().hasFiles()){importPaths(e.getDragboard().getFiles().stream().map(java.io.File::toPath).toList());e.setDropCompleted(true);e.consume();}});
+        saveTimer=new javafx.animation.Timeline(new javafx.animation.KeyFrame(javafx.util.Duration.seconds(15),e->savePosition()));saveTimer.setCycleCount(javafx.animation.Animation.INDEFINITE);saveTimer.play();
+        reload(()->{showHome();library.track(settings.get("lastTrack")).ifPresent(t->{try{playback.restore(t,Double.parseDouble(settings.get("lastPosition")));}catch(Exception ignored){}});});
+        updateLayout();updateVisualState();
+    }
+    private void updateTime(){timeLabel.setText(clock(playback.positionProperty().get())+" / "+clock(playback.durationProperty().get()));}
+    private void loadVisualSettings(){
+        try{visualMode=VisualizerPane.parseMode(library.setting("visual.mode","BLACK_HOLE"));}catch(IllegalArgumentException ignored){}
+        try{visualQuality=VisualizerPane.Quality.valueOf(library.setting("visual.quality","MEDIUM"));}catch(IllegalArgumentException ignored){}
+        try{visualFps=Math.clamp(Integer.parseInt(library.setting("visual.fps","45")),15,60);}catch(NumberFormatException ignored){}
+        try{visualIntensity=Math.clamp(Double.parseDouble(library.setting("visual.intensity","0.9")),0,2);}catch(NumberFormatException ignored){}
+        visualIdleSpeed=readVisualSpeed("visual.idleSpeed",1);visualPlayingSpeed=readVisualSpeed("visual.playingSpeed",.75);
+        visualEnabled=Boolean.parseBoolean(library.setting("visual.enabled","true"));backgroundEnabled=Boolean.parseBoolean(library.setting("background.enabled","true"));animationsEnabled=Boolean.parseBoolean(library.setting("animations.enabled","true"));
+        visualizer.setMode(visualMode);visualizer.setQuality(visualQuality);visualizer.setIntensity(visualIntensity);visualizer.setFps(visualFps);visualizer.setEffectsEnabled(visualEnabled);visualizer.setAnimationsEnabled(animationsEnabled);visualizer.setUltraHd(Boolean.parseBoolean(library.setting("visual.ultrahd","false")));
+    }
+    private double readVisualSpeed(String key,double fallback){try{double value=Double.parseDouble(library.setting(key,Double.toString(fallback)));return Double.isFinite(value)?Math.clamp(value,0,2):fallback;}catch(NumberFormatException failure){return fallback;}}
+    private void applyTheme(Theme selected){selected.apply(root);visualizer.setTheme(selected.accentColor(),selected.secondaryColor(),javafx.scene.paint.Color.web(selected.panel()));backdrop.setTheme(selected);if(editor!=null)editor.setTheme(selected);}
+    private void updateVisualState(){
+        boolean active=!stage.isIconified();visualizer.setActive(active&&visualFeatured);visualizer.setEffectsEnabled(visualEnabled);visualizer.setAnimationsEnabled(animationsEnabled);visualizer.setReducedMotion(reduced);visualizer.setFps(visualFps);visualizer.setIntensity(visualIntensity);visualizer.setSpeeds(visualIdleSpeed,visualPlayingSpeed);
+        backdrop.setQuality(visualQuality.ordinal());backdrop.setFps(visualFps);backdrop.setActive(active);backdrop.setEnabled(backgroundEnabled&&visualEnabled);backdrop.setReducedMotion(reduced||!animationsEnabled);backdrop.setIntensity(visualIntensity*.7);
+    }
+    private void updateLayout(){boolean tools=Set.of("Аудиостудия","Эквалайзер","Настройки","Сервер").contains(currentSection);boolean show=stage.getWidth()>=1320&&!tools;rightDockScroll.setVisible(show);rightDockScroll.setManaged(show);volumeGroup.setVisible(stage.getWidth()>=1130);volumeGroup.setManaged(stage.getWidth()>=1130);}
+    private void selectVisualMode(VisualizerPane.Mode mode){visualMode=Objects.requireNonNull(mode);visualizer.setMode(mode);setting("visual.mode",mode.name());}
+    public static String clock(double value){long s=(long)Math.max(0,value);return "%d:%02d".formatted(s/60,s%60);}
+    public void task(String message,Runnable action,Runnable done){pending++;busy.setManaged(true);busy.setVisible(true);statusLabel.setText(message);worker.submit(()->{try{action.run();Platform.runLater(()->{finishTask();if(done!=null)done.run();});}catch(Throwable e){Platform.runLater(()->{finishTask();error(e.getMessage()==null?e.getClass().getSimpleName():e.getMessage());});}});}
+    private void finishTask(){pending=Math.max(0,pending-1);busy.setManaged(pending>0);busy.setVisible(pending>0);if(pending==0)statusLabel.setText(tracks.size()+" треков · ваша музыка всегда рядом");}
+    private record Catalog(List<Track> tracks,List<Playlist> playlists,Set<String> favorites,List<Track> recent,List<RecommendationService.Recommendation> recommendations){}
+    private void reload(Runnable done){
+        final Catalog[] result={null};
+        task("Обновление медиатеки…",()->result[0]=new Catalog(library.tracks(),library.playlists(),library.favorites().stream().map(Track::id).collect(java.util.stream.Collectors.toSet()),library.history(150).stream().map(LibraryService.HistoryEntry::track).distinct().limit(6).toList(),new RecommendationService(library).recommend(RecommendationService.WaveMode.MY_WAVE,8)),()->{
+            tracks=result[0].tracks;playlists=result[0].playlists;favorites=result[0].favorites;recentlyPlayed=result[0].recent;homeRecommendations=result[0].recommendations;
+            if(pending==0)statusLabel.setText(tracks.size()+" треков · ваша музыка всегда рядом");
+            playlistNav.getChildren().clear();for(Playlist playlist:playlists){Button b=button(playlist.name(),"nav-button",()->openPlaylist(playlist.id()));b.setGraphic(Icons.of("music",16));b.setMaxWidth(Double.MAX_VALUE);playlistNav.getChildren().add(b);}updateLike();updateDockQueue();if(done!=null)done.run();
+        });
+    }
+    private void display(Node node,String section){currentSection=section;if(editor!=null&&!section.equals("Аудиостудия"))editor.pausePreview();visualFeatured=false;pageHost.getChildren().setAll(node);breadcrumb.setText(section);updateNavigation(sidebar,section);Motion.reveal(node,reduced||!animationsEnabled);updateLayout();updateVisualState();}
+    private void updateNavigation(Parent parent,String section){for(Node child:parent.getChildrenUnmodifiable()){if(child instanceof Button button&&button.getStyleClass().contains("nav-button")){button.getStyleClass().remove("active");if(button.getText().equals(section))button.getStyleClass().add("active");}if(child instanceof Parent nested)updateNavigation(nested,section);}}
+    public void status(String message){statusLabel.setText(message);}
+    public void error(String message){statusLabel.setText(message);Alert alert=new Alert(Alert.AlertType.ERROR);alert.initOwner(stage);styleDialog(alert);alert.setTitle("Auralis");alert.setHeaderText("Не удалось выполнить действие");alert.setContentText(message);alert.show();}
+    private void styleDialog(Dialog<?> dialog){dialog.getDialogPane().getStylesheets().add(AuralisApp.class.getResource("auralis.css").toExternalForm());theme.apply(dialog.getDialogPane());}
+    private void setting(String key,String value){settings.put(key,value);worker.submit(()->{library.setSetting(key,value);if(key.equals("genres")||key.equals("artists"))library.setSetting("preferences."+key,value);});}
+    private Optional<String> ask(String title,String initial){TextInputDialog dialog=new TextInputDialog(initial);dialog.initOwner(stage);dialog.setTitle("Auralis");dialog.setHeaderText(title);dialog.setContentText("Название:");styleDialog(dialog);return dialog.showAndWait().map(String::strip).filter(s->!s.isBlank());}
+    private boolean confirm(String title,String detail){Alert dialog=new Alert(Alert.AlertType.CONFIRMATION,detail,ButtonType.CANCEL,ButtonType.OK);dialog.initOwner(stage);dialog.setTitle("Auralis");dialog.setHeaderText(title);styleDialog(dialog);return dialog.showAndWait().orElse(ButtonType.CANCEL)==ButtonType.OK;}
+    @FXML public void showHome(){
+        activePlaylist=null;refreshPage=this::showHome;
+        var data=new DashboardView.Data(tracks,recentlyPlayed,homeRecommendations,playlists,favorites);
+        var actions=new DashboardView.Actions(items->play(items,0),this::startWave,this::showWave,this::showLibrary,this::showFavorites,this::importFolder,this::createPlaylist,this::openPlaylist,this::selectVisualMode);
+        display(scroll(DashboardView.build(data,actions,visualizer,playback.playingProperty(),visualMode,greeting())),"Главная");visualFeatured=true;updateVisualState();
+    }
+    private String greeting(){int hour=java.time.LocalTime.now().getHour();return hour<6?"Музыка для этой ночи":hour<12?"Доброе утро":hour<18?"Хорошего дня":"Добрый вечер";}
+    private VBox stat(String value,String name){VBox card=card(label(value,"section-title"),label(name,"muted"));HBox.setHgrow(card,Priority.ALWAYS);card.setMaxWidth(Double.MAX_VALUE);return card;}
+    private VBox emptyLibrary(){VBox empty=column(label("♪","empty-icon"),label("Ваша коллекция начинается здесь","section-title"),label("Добавьте папку или перетащите аудиофайлы в окно.\nМузыка останется на вашем компьютере.","subtitle"),row(button("Выбрать папку","primary",this::importFolder),button("Выбрать файлы","secondary",this::importMusic)));empty.getStyleClass().add("empty-state");return empty;}
+    @FXML public void showLibrary(){activePlaylist=null;refreshPage=this::showLibrary;showTrackPage("Медиатека",tracks.size()+" треков · локальная коллекция",tracks);}
+    @FXML public void showFavorites(){activePlaylist=null;refreshPage=this::showFavorites;showTrackPage("Любимые треки","Музыка, к которой хочется возвращаться",tracks.stream().filter(t->favorites.contains(t.id())).toList());}
+    @FXML public void showHistory(){activePlaylist=null;refreshPage=this::showHistory;final List<Track>[] result=new List[]{List.of()};task("Загрузка истории…",()->result[0]=library.history(300).stream().map(LibraryService.HistoryEntry::track).distinct().toList(),()->showTrackPage("История","Последние прослушанные композиции",result[0]));}
+    private void showTrackPage(String title,String subtitle,List<Track> items){
+        VBox page=page(title,subtitle);page.getChildren().add(libraryTabs());FlowPane actions=new FlowPane(10,10);
+        Button start=button("Слушать","primary",()->play(items,0));start.setGraphic(Icons.of("play",16));Button shuffle=button("Перемешать","secondary",()->{playback.setShuffle(true);play(items,0);});shuffle.setGraphic(Icons.of("shuffle",16));
+        actions.getChildren().addAll(start,shuffle,button("Добавить файлы","secondary",this::importMusic),button("Добавить папку","text-button",this::importFolder));page.getChildren().add(actions);
+        TableView<Track> table=table(items);table.setPrefHeight(Math.max(350,stage.getHeight()-355));page.getChildren().add(table);display(scroll(page),title);
+    }
+    private FlowPane libraryTabs(){FlowPane tabs=new FlowPane(8,8);tabs.getChildren().addAll(button("Треки","pill",this::showLibrary),button("Альбомы","pill",()->showGroups(false)),button("Исполнители","pill",()->showGroups(true)),button("Плейлисты","pill",this::showPlaylists));return tabs;}
+    private void showGroups(boolean artists){
+        activePlaylist=null;refreshPage=()->showGroups(artists);String title=artists?"Исполнители":"Альбомы";Map<String,List<Track>> groups=new TreeMap<>(String.CASE_INSENSITIVE_ORDER);for(Track track:tracks){String key=artists?track.artist():track.album()+" · "+track.artist();groups.computeIfAbsent(key,k->new ArrayList<>()).add(track);}
+        FlowPane grid=new FlowPane(16,20);for(var group:groups.entrySet()){Track first=group.getValue().getFirst();Label name=label(group.getKey(),"tile-title");name.setMaxWidth(152);name.setWrapText(false);VBox card=new VBox(9,artwork(first,152),name,label(group.getValue().size()+" треков","tile-subtitle"));card.getStyleClass().add("track-card");card.setOnMouseClicked(e->{refreshPage=()->showTrackPage(group.getKey(),group.getValue().size()+" треков",group.getValue());refreshPage.run();});grid.getChildren().add(card);}
+        if(groups.isEmpty())grid.getChildren().add(emptyLibrary());display(scroll(page(title,"Из вашей личной коллекции",libraryTabs(),grid)),title);
+    }
+    private void showPlaylists(){activePlaylist=null;refreshPage=this::showPlaylists;FlowPane grid=new FlowPane(14,14);for(Playlist playlist:playlists){VBox tile=card(label(playlist.name(),"section-title"),label(playlist.tracks().size()+" треков · "+clock(playlist.durationSeconds()),"muted"),button("Открыть плейлист  →","text-button",()->openPlaylist(playlist.id())));tile.setPrefWidth(244);grid.getChildren().add(tile);}grid.getChildren().add(button("+  Новый плейлист","primary",this::createPlaylist));display(scroll(page("Плейлисты","Собрано вами",libraryTabs(),grid)),"Плейлисты");}
+    private TableView<Track> table(List<Track> items){TableView<Track> table=new TableView<>(FXCollections.observableArrayList(items));table.setFixedCellSize(62);table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY_FLEX_LAST_COLUMN);table.setPlaceholder(label("Пока пусто. Добавьте музыку или измените поиск.","muted"));TableColumn<Track,String> index=new TableColumn<>("#");index.setMaxWidth(44);index.setCellValueFactory(c->new SimpleStringProperty(Integer.toString(items.indexOf(c.getValue())+1)));TableColumn<Track,String> title=new TableColumn<>("КОМПОЗИЦИЯ");title.setPrefWidth(270);title.setCellValueFactory(c->new SimpleStringProperty(c.getValue().title()));title.setCellFactory(c->new TableCell<>(){@Override protected void updateItem(String value,boolean empty){super.updateItem(value,empty);setText(null);if(empty||getIndex()<0||getIndex()>=getTableView().getItems().size()){setGraphic(null);return;}Track track=getTableView().getItems().get(getIndex());Label name=label(value,"track-title"),artist=label(track.artist(),"tile-subtitle");name.setWrapText(false);artist.setWrapText(false);VBox info=new VBox(5,name,artist);setGraphic(row(artwork(track,36),info));}});TableColumn<Track,String> album=new TableColumn<>("АЛЬБОМ");album.setPrefWidth(200);album.setCellValueFactory(c->new SimpleStringProperty(c.getValue().album()));TableColumn<Track,String> genre=new TableColumn<>("ЖАНР");genre.setPrefWidth(110);genre.setCellValueFactory(c->new SimpleStringProperty(c.getValue().genre()));TableColumn<Track,String> duration=new TableColumn<>("ВРЕМЯ");duration.setPrefWidth(75);duration.setMaxWidth(90);duration.setCellValueFactory(c->new SimpleStringProperty(c.getValue().formattedDuration()));TableColumn<Track,String> favorite=new TableColumn<>("♡");favorite.setMaxWidth(50);favorite.setCellValueFactory(c->new SimpleStringProperty(favorites.contains(c.getValue().id())?"♥":""));table.getColumns().addAll(index,title,album,genre,duration,favorite);
+        table.setRowFactory(t->{TableRow<Track> r=new TableRow<>();r.setOnMouseClicked(e->{if(e.getClickCount()==2&&!r.isEmpty())play(new ArrayList<>(table.getItems()),r.getIndex());});r.setOnContextMenuRequested(e->{if(!r.isEmpty()){ContextMenu menu=context(r.getItem());menu.show(r,e.getScreenX(),e.getScreenY());}});r.setOnDragDetected(e->{if(activePlaylist!=null&&!r.isEmpty()){Dragboard db=r.startDragAndDrop(TransferMode.MOVE);ClipboardContent clip=new ClipboardContent();clip.putString(r.getItem().id());db.setContent(clip);e.consume();}});r.setOnDragOver(e->{if(activePlaylist!=null&&e.getDragboard().hasString())e.acceptTransferModes(TransferMode.MOVE);});r.setOnDragDropped(e->{if(activePlaylist!=null&&!r.isEmpty()&&e.getDragboard().hasString()){List<Track> ordered=new ArrayList<>(table.getItems());Track moving=ordered.stream().filter(x->x.id().equals(e.getDragboard().getString())).findFirst().orElse(null);if(moving!=null){ordered.remove(moving);ordered.add(Math.min(r.getIndex(),ordered.size()),moving);String id=activePlaylist;task("Сохранение порядка…",()->library.reorderPlaylist(id,ordered.stream().map(Track::id).toList()),()->openPlaylist(id));e.setDropCompleted(true);}}});return r;});return table;}
+    private ContextMenu context(Track track){ContextMenu menu=new ContextMenu();menu.getItems().add(item("Воспроизвести",()->play(List.of(track),0)));menu.getItems().add(item("В очередь",()->{playback.enqueue(track);status("Добавлено в очередь");}));menu.getItems().add(item(favorites.contains(track.id())?"Убрать из любимого":"В любимое",()->favorite(track)));Menu add=new Menu("В плейлист");for(Playlist p:playlists)add.getItems().add(item(p.name(),()->task("Добавление…",()->library.addToPlaylist(p.id(),track.id()),()->reload(null))));menu.getItems().add(add);if(activePlaylist!=null){String id=activePlaylist;menu.getItems().add(item("Удалить из плейлиста",()->task("Удаление…",()->library.removeFromPlaylist(id,track.id()),()->reload(()->openPlaylist(id)))));}
+        menu.getItems().addAll(item("Больше такого",()->reaction(track,Reaction.MORE)),item("Меньше такого",()->reaction(track,Reaction.LESS)),item("Не нравится",()->reaction(track,Reaction.DISLIKE)),item("Не рекомендовать исполнителя",()->task("Сохранение…",()->library.excludeArtist(track.artist(),true),()->status("Исполнитель исключён из волны"))));
+        if(advanced)menu.getItems().add(item("Открыть в аудиостудии",()->openEditor(track)));menu.getItems().add(item("Сведения об аудио",()->audioInfo(track)));return menu;}
+    private MenuItem item(String text,Runnable action){MenuItem item=new MenuItem(text);item.setOnAction(e->action.run());return item;}
+    private void play(List<Track> items,int index){if(items.isEmpty()){status("Сначала добавьте музыку");return;}waveMode=null;playback.setQueue(items,index);}
+    private void playWave(List<Track> items,RecommendationService.WaveMode mode){if(items.isEmpty()){status("Нет доступных треков для этого режима волны");return;}waveMode=mode;playback.setShuffle(false);playback.setQueue(items,0);}
+    private void refillWave(){RecommendationService.WaveMode requested=waveMode;Set<String> recent=playback.queue().stream().skip(Math.max(0,playback.queue().size()-5)).map(Track::id).collect(java.util.stream.Collectors.toSet());worker.submit(()->{try{var recommender=new RecommendationService(library);var ranked=recommender.recommend(requested,30,recent);if(ranked.isEmpty())ranked=recommender.recommend(requested,30);List<Track> batch=ranked.stream().map(RecommendationService.Recommendation::track).toList();Platform.runLater(()->{if(waveMode==requested&&!batch.isEmpty())playWave(batch,requested);});}catch(Exception e){Platform.runLater(()->error(e.getMessage()));}});}
+    @FXML public void togglePlay(){if(playback.current()==null){play(tracks,0);return;}playback.toggle();}
+    @FXML public void previous(){playback.previous();}@FXML public void next(){playback.next();}public void seekRelative(double seconds){playback.seek(playback.positionProperty().get()+seconds);}
+    @FXML private void toggleShuffle(){playback.setShuffle(!playback.shuffle());shuffleButton.getStyleClass().remove("active");if(playback.shuffle())shuffleButton.getStyleClass().add("active");}
+    @FXML private void toggleRepeat(){PlaybackService.Repeat mode=playback.cycleRepeat();repeatButton.setText(mode==PlaybackService.Repeat.ONE?"1":"");repeatButton.getStyleClass().remove("active");if(mode!=PlaybackService.Repeat.OFF)repeatButton.getStyleClass().add("active");status("Повтор: "+mode);}
+    @FXML private void toggleLike(){if(playback.current()!=null)favorite(playback.current());}
+    private void favorite(Track track){task("Сохранение избранного…",()->library.toggleFavorite(track.id()),()->reload(()->{updateLike();refreshPage.run();}));}
+    private void reaction(Track track,Reaction reaction){task("Настройка рекомендаций…",()->library.setReaction(track.id(),reaction),()->status("Учтём при следующем запуске волны"));}
+    private void updateCurrent(Track track){
+        if(track==null){trackTitle.setText("Ваша музыка ждёт");trackArtist.setText("Добавьте любимые композиции");coverHost.getChildren().setAll(label("a","cover-note"));dockTitle.setText("Включите свою музыку");dockArtist.setText("Выберите трек в коллекции");dockQuality.setText("Локальная музыка · без подписки");dockCover.getChildren().setAll(label("a","idle-cover-mark"));visualizer.setArtwork(null);updateLike();updateDockQueue();return;}trackTitle.setText(track.title());trackArtist.setText(track.artist());coverHost.getChildren().setAll(artwork(track,52));dockTitle.setText(track.title());dockArtist.setText(track.artist());dockCover.getChildren().setAll(artwork(track,224));
+        String name=track.path().getFileName().toString();int dot=name.lastIndexOf('.');dockQuality.setText((dot<0?"АУДИО":name.substring(dot+1).toUpperCase(Locale.ROOT))+"  /  "+track.formattedDuration()+"  /  локальная копия");
+        if(!track.artworkPath().isBlank()&&Files.isRegularFile(Path.of(track.artworkPath())))visualizer.setArtwork(new Image(Path.of(track.artworkPath()).toUri().toString(),512,512,true,true,true));else visualizer.setArtwork(null);
+        updateLike();updateDockQueue();
+    }
+    private void updateLike(){boolean liked=playback!=null&&playback.current()!=null&&favorites.contains(playback.current().id());for(Button button:List.of(likeButton,dockLikeButton)){button.setText("");button.setGraphic(Icons.of("heart",18));button.getStyleClass().remove("active");if(liked)button.getStyleClass().add("active");}}
+    private void updateDockQueue(){
+        dockQueue.getChildren().clear();List<Track> queue=playback.queue();int position=playback.queueIndex();List<Track> upcoming=queue.stream().skip(Math.max(0,position+1)).limit(3).toList();
+        for(int upcomingIndex=0;upcomingIndex<upcoming.size();upcomingIndex++){Track track=upcoming.get(upcomingIndex);int queueIndex=position+1+upcomingIndex;Label title=label(track.title(),"tile-title"),artist=label(track.artist(),"tile-subtitle");title.setWrapText(false);title.setMaxWidth(155);artist.setWrapText(false);artist.setMaxWidth(155);VBox info=new VBox(4,title,artist);HBox item=row(artwork(track,37),info);item.getStyleClass().add("queue-entry");item.setOnMouseClicked(e->play(queue,queueIndex));dockQueue.getChildren().add(item);}
+        if(upcoming.isEmpty())dockQueue.getChildren().add(label(playback.current()==null?"Выберите трек в медиатеке":"Конец очереди. Добавьте ещё музыку или включите волну.","muted"));
+    }
+    private Node artwork(Track track,double size){return DashboardView.artwork(track,size);}
+    private void recordListen(boolean skipped){Track t=previousTrack;double listened=actualListened;actualListened=0;if(t!=null&&listened>1)worker.submit(()->library.recordListen(t.id(),listened,skipped));}
+    private void savePosition(){if(playback.current()!=null){setting("lastTrack",playback.current().id());setting("lastPosition",Double.toString(playback.positionProperty().get()));}setting("volume",Double.toString(volume.getValue()));}
+    @FXML public void showQueue(){activePlaylist=null;refreshPage=this::showQueue;showTrackPage("Очередь воспроизведения","Двойной щелчок — начать с выбранного трека",playback.queue());}
+    @FXML private void fullPlayer(){
+        if(playback.current()==null){showHome();return;}Parent previous=visualizer.getParent();if(previous instanceof Pane pane)pane.getChildren().remove(visualizer);
+        visualizer.setBackdropMode(false);StackPane stage=new StackPane(visualizer);stage.setPrefHeight(540);Label title=label(playback.current().title(),"hero-title"),artist=label(playback.current().artist(),"subtitle");
+        title.textProperty().bind(javafx.beans.binding.Bindings.createStringBinding(()->playback.current()==null?"":playback.current().title(),playback.currentProperty()));artist.textProperty().bind(javafx.beans.binding.Bindings.createStringBinding(()->playback.current()==null?"":playback.current().artist(),playback.currentProperty()));
+        Button prev=button("Предыдущий","secondary",this::previous),toggle=button("Играть / пауза","primary",this::togglePlay),next=button("Следующий","secondary",this::next);prev.setGraphic(Icons.of("previous",16));toggle.setGraphic(Icons.of("play",16));next.setGraphic(Icons.of("next",16));
+        VBox page=page("Наедине с музыкой",DashboardView.modeName(visualMode),stage,title,artist,row(prev,toggle,next,button("Текст песни / LRC","secondary",()->{if(playback.current()!=null)lyrics(playback.current());})),button("Настроить визуализацию","text-button",this::showSettings));
+        display(scroll(page),"Плеер");visualFeatured=true;updateVisualState();
+    }
+    private void lyrics(Track track){Path lrc=track.path().resolveSibling(track.path().getFileName().toString().replaceFirst("\\.[^.]+$",".lrc"));Path txt=track.path().resolveSibling(track.path().getFileName().toString().replaceFirst("\\.[^.]+$",".txt"));Path file=Files.exists(lrc)?lrc:txt;if(!Files.exists(file)){status("Положите .lrc или .txt рядом с треком с таким же именем");return;}final String[] text={""};task("Загрузка текста…",()->{try{if(Files.size(file)>2_097_152)throw new IllegalArgumentException("Файл текста слишком большой");text[0]=Files.readString(file);}catch(Exception e){throw new RuntimeException(e);}},()->{Dialog<Void>d=new Dialog<>();d.initOwner(stage);d.setTitle(track.title());d.getDialogPane().getButtonTypes().add(ButtonType.CLOSE);if(file.equals(lrc)){var parsed=io.auralis.core.lyrics.LrcLyrics.parse(text[0]);ListView<String> lines=new ListView<>(FXCollections.observableArrayList(parsed.lines().stream().map(io.auralis.core.lyrics.LrcLyrics.Line::text).toList()));lines.setPrefSize(540,430);javafx.beans.value.ChangeListener<Number> listener=(o,a,b)->{if(playback.current()!=null&&playback.current().id().equals(track.id())){int index=parsed.indexAt(b.doubleValue());if(index>=0&&index!=lines.getSelectionModel().getSelectedIndex()){lines.getSelectionModel().select(index);lines.scrollTo(Math.max(0,index-3));}}};playback.positionProperty().addListener(listener);lines.setOnMouseClicked(e->{if(e.getClickCount()==2&&lines.getSelectionModel().getSelectedIndex()>=0&&playback.current()!=null&&playback.current().id().equals(track.id()))playback.seek(parsed.lines().get(lines.getSelectionModel().getSelectedIndex()).seconds());});d.setOnHidden(e->playback.positionProperty().removeListener(listener));d.getDialogPane().setContent(lines);}else{TextArea area=new TextArea(text[0]);area.setEditable(false);area.setWrapText(true);area.setPrefHeight(400);d.getDialogPane().setContent(area);}styleDialog(d);d.show();});}
+    @FXML public void importMusic(){FileChooser chooser=new FileChooser();chooser.setTitle("Добавить музыку");chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Аудиофайлы","*.mp3","*.flac","*.wav","*.m4a","*.ogg","*.aac","*.opus","*.aiff","*.wma"));List<java.io.File> files=chooser.showOpenMultipleDialog(stage);if(files!=null)importPaths(files.stream().map(java.io.File::toPath).toList());}
+    public void importFolder(){DirectoryChooser chooser=new DirectoryChooser();chooser.setTitle("Папка с музыкой");java.io.File folder=chooser.showDialog(stage);if(folder!=null)importPaths(List.of(folder.toPath()));}
+    private void importPaths(List<Path> paths){LibraryService.ImportResult[] result={null};task("Сканирование и проверка аудио…",()->result[0]=library.importPaths(paths),()->reload(()->{refreshPage.run();status("Добавлено: "+result[0].imported()+" · дубликатов: "+result[0].duplicates()+" · ошибок: "+result[0].failures().size());if(!result[0].failures().isEmpty())error(result[0].failures().stream().limit(8).map(f->f.path().getFileName()+": "+f.message()).collect(java.util.stream.Collectors.joining("\n")));}));}
+    @FXML public void createPlaylist(){ask("Новый плейлист","").ifPresent(name->{Playlist[] result={null};task("Создание плейлиста…",()->result[0]=library.createPlaylist(name),()->reload(()->openPlaylist(result[0].id())));});}
+    private void openPlaylist(String id){
+        Playlist playlist=playlists.stream().filter(p->p.id().equals(id)).findFirst().orElse(null);
+        if(playlist==null){reload(this::showLibrary);return;}
+        activePlaylist=id;refreshPage=()->openPlaylist(id);
+        String cover=playlist.artworkPath();if((cover==null||cover.isBlank())&&!playlist.tracks().isEmpty())cover=playlist.tracks().getFirst().artworkPath();
+        VBox heading=column(label("СОБРАНО ВАМИ / ПЛЕЙЛИСТ","hero-kicker"),label(playlist.name(),"title"),label(playlist.tracks().size()+" треков · "+clock(playlist.durationSeconds()),"subtitle"));
+        HBox banner=row(DashboardView.artwork(cover,128),heading);banner.getStyleClass().add("card");
+        FlowPane actions=new FlowPane(10,10);Button start=button("Слушать","primary",()->play(playlist.tracks(),0));start.setGraphic(Icons.of("play",16));
+        actions.getChildren().addAll(start,button("Переименовать","secondary",()->ask("Название плейлиста",playlist.name()).ifPresent(name->task("Сохранение…",()->library.renamePlaylist(id,name),()->reload(()->openPlaylist(id))))),button("Экспорт M3U8","secondary",()->exportPlaylist(id)),button("Обложка","secondary",()->playlistArtwork(id)),button("Удалить","text-button",()->{if(confirm("Удалить плейлист?","Файлы музыки останутся на месте."))task("Удаление…",()->library.deletePlaylist(id),()->reload(this::showLibrary));}));
+        TableView<Track> table=table(playlist.tracks());table.setPrefHeight(Math.max(300,stage.getHeight()-430));
+        VBox page=new VBox(20,banner,actions,label("Перетащите строки, чтобы изменить порядок","micro"),table);page.getStyleClass().add("page");display(scroll(page),"Плейлисты");
+    }
+    private void exportPlaylist(String id){FileChooser chooser=new FileChooser();chooser.setInitialFileName("playlist.m3u8");java.io.File file=chooser.showSaveDialog(stage);if(file!=null)task("Экспорт плейлиста…",()->{try{library.exportM3u(id,file.toPath());}catch(Exception e){throw new RuntimeException(e);}},()->status("Плейлист сохранён: "+file));}
+    private void playlistArtwork(String id){FileChooser chooser=new FileChooser();chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Обложка","*.png","*.jpg","*.jpeg"));java.io.File file=chooser.showOpenDialog(stage);if(file!=null)task("Сохранение обложки…",()->{try{library.setPlaylistArtwork(id,file.toPath());}catch(Exception e){throw new RuntimeException(e);}},()->reload(()->openPlaylist(id)));}
+    @FXML public void showWave(){
+        activePlaylist=null;refreshPage=this::showWave;
+        ComboBox<RecommendationService.WaveMode> modes=new ComboBox<>(FXCollections.observableArrayList(RecommendationService.WaveMode.values()));modes.setValue(waveMode==null?RecommendationService.WaveMode.MY_WAVE:waveMode);
+        modes.setConverter(new javafx.util.StringConverter<>(){public String toString(RecommendationService.WaveMode value){return waveName(value);}public RecommendationService.WaveMode fromString(String value){return RecommendationService.WaveMode.MY_WAVE;}});
+        FlowPane actions=new FlowPane(10,10);Button start=button("Начать слушать","primary",()->generateWave(modes.getValue().name(),true));start.setGraphic(Icons.of("play",16));actions.getChildren().addAll(modes,start,button("Показать подборку","secondary",()->generateWave(modes.getValue().name(),false)));
+        VBox intro=column(label("ПЕРСОНАЛЬНЫЙ ЭФИР","hero-kicker"),label("На вашей\nчастоте.","hero-title"),label("Любимые треки и новые сочетания.\nПоток из вашей личной коллекции.","subtitle"));intro.setPrefWidth(325);intro.setMinWidth(280);
+        StackPane hero=DashboardView.cinematic(visualizer,intro,label("МУЗЫКА НА ВАШЕЙ ЧАСТОТЕ","visual-status"));
+        VBox page=page("Моя волна","Слушайте то, что близко именно вам.",hero,actions,card(label("С каждым прослушиванием — ближе к вам","section-title"),label("Подбор учитывает жанры, исполнителей, ваши реакции и историю. Причины выбора видны в подборке. Для режимов настроения используются указанные в файлах метаданные.","subtitle"),button("Мои предпочтения  →","text-button",this::showSettings)));
+        display(scroll(page),"Моя волна");visualFeatured=true;updateVisualState();
+    }
+    private static String waveName(RecommendationService.WaveMode mode){if(mode==null)return "Моя волна";return switch(mode){case MY_WAVE->"Моя волна";case DISCOVERY->"Открытия";case FAVORITES->"Любимое";case FOCUS->"Сосредоточиться";case ENERGY->"Энергия";case NIGHT->"Ночь";case RELAX->"Расслабиться";case FAMILIAR->"Знакомое";};}
+    private void startWave(){generateWave("MY_WAVE",true);}
+    private void generateWave(String mode,boolean autoplay){if(tracks.isEmpty()){status("Добавьте музыку, чтобы запустить волну");return;}/* ranking is performed in the core service, never random shuffle */
+        final List<RecommendationService.Recommendation>[] result=new List[]{List.of()};task("Подбираем музыку…",()->result[0]=new RecommendationService(library).recommend(RecommendationService.WaveMode.valueOf(mode),50),()->{List<Track> selected=result[0].stream().map(RecommendationService.Recommendation::track).toList();VBox page=page("Ваша волна",waveName(RecommendationService.WaveMode.valueOf(mode))+" · "+selected.size()+" композиций",row(button("▶  Слушать подборку","primary",()->playWave(selected,RecommendationService.WaveMode.valueOf(mode))),button("Изменить режим","secondary",this::showWave)));for(var rec:result[0].stream().limit(5).toList())page.getChildren().add(label(rec.track().title()+" — "+String.join(" · ",rec.reasons()),"muted"));TableView<Track> table=table(selected);table.setPrefHeight(420);page.getChildren().add(table);display(scroll(page),"Моя волна");if(autoplay)playWave(selected,RecommendationService.WaveMode.valueOf(mode));});}
+    @FXML public void showEditor(){if(playback.current()!=null)openEditor(playback.current());else{display(scroll(page("Аудиостудия","Неразрушающее редактирование вашей музыки",card(label("Выберите композицию","section-title"),label("Запустите трек или выберите «Открыть в аудиостудии» в меню композиции.","subtitle"),button("Открыть медиатеку","primary",this::showLibrary)))),"Аудиостудия");}}
+    private void openEditor(Track track){playback.pause();if(editor==null)editor=new EditorView(library,worker,this::error,this::status,stage);editor.setTheme(theme);display(scroll(editor.open(track)),"Аудиостудия");}
+    private void audioInfo(Track track){task("Анализ аудио…",()->{try{var info=library.audio().probe(track.path());Platform.runLater(()->{Alert alert=new Alert(Alert.AlertType.INFORMATION);alert.initOwner(stage);alert.setHeaderText(track.title());alert.setContentText(info.codec().toUpperCase(Locale.ROOT)+" · "+info.sampleRate()+" Hz · "+info.channels()+" каналов\n"+(info.bitrate()/1000)+" kbps · "+clock(info.durationSeconds())+"\n"+track.path());styleDialog(alert);alert.show();});}catch(Exception e){throw new RuntimeException(e);}},null);}
+    @FXML public void showEqualizer(){VBox page=page("Эквалайзер","Десять полос. Точное управление характером звука.");HBox bands=new HBox(18);bands.setAlignment(Pos.CENTER);int[] hz={32,64,125,250,500,1000,2000,4000,8000,16000};List<Slider> sliders=new ArrayList<>();for(int i=0;i<10;i++){final int band=i;Slider slider=new Slider(-12,12,playback.gain(i));slider.setOrientation(Orientation.VERTICAL);slider.setPrefHeight(220);Label value=label("%.1f dB".formatted(slider.getValue()),"muted");slider.valueProperty().addListener((o,a,b)->{playback.setGain(band,b.doubleValue());value.setText("%.1f dB".formatted(b.doubleValue()));});slider.valueChangingProperty().addListener((o,a,b)->{if(!b)setting("eq."+band,Double.toString(slider.getValue()));});slider.setOnMouseReleased(e->setting("eq."+band,Double.toString(slider.getValue())));sliders.add(slider);VBox col=column(value,slider,label(hz[i]<1000?Integer.toString(hz[i]):hz[i]/1000+"k","muted"));col.setAlignment(Pos.CENTER);bands.getChildren().add(col);}
+        CheckBox enabled=new CheckBox("Эквалайзер включён");enabled.setSelected(eqEnabled);enabled.selectedProperty().addListener((o,a,b)->{eqEnabled=b;playback.setEqEnabled(b);setting("eq.enabled",b.toString());});ComboBox<String> presets=new ComboBox<>(FXCollections.observableArrayList("Нейтральный","Больше баса","Яркость","Вокал","Мой профиль"));presets.setValue("Нейтральный");presets.setOnAction(e->{double[] values=switch(presets.getValue()){case "Больше баса"->new double[]{6,5,3,1,0,0,0,0,0,0};case "Яркость"->new double[]{0,0,0,0,0,1,2,4,5,4};case "Вокал"->new double[]{-2,-2,-1,1,3,4,3,1,0,-1};case "Мой профиль"->{double[] saved=new double[10];for(int i=0;i<10;i++)try{saved[i]=Double.parseDouble(settings.getOrDefault("eq.saved."+i,"0"));}catch(Exception ignored){}yield saved;}default->new double[10];};for(int i=0;i<10;i++){sliders.get(i).setValue(values[i]);setting("eq."+i,Double.toString(values[i]));}});Slider balance=new Slider(-1,1,playbackBalance);balance.valueProperty().addListener((o,a,b)->{playbackBalance=b.doubleValue();playback.setBalance(playbackBalance);});Slider rate=new Slider(.5,2,playbackRate);Label speed=label("%.2f×".formatted(playbackRate),"muted");rate.valueProperty().addListener((o,a,b)->{playbackRate=b.doubleValue();playback.setRate(playbackRate);speed.setText("%.2f×".formatted(b.doubleValue()));});page.getChildren().addAll(row(enabled,spacer(),presets,button("Сохранить профиль","secondary",()->{for(int i=0;i<10;i++)setting("eq.saved."+i,Double.toString(sliders.get(i).getValue()));status("Профиль сохранён");})),card(bands),card(label("Баланс","section-title"),balance,label("Скорость воспроизведения","section-title"),row(rate,speed),label("Скорость JavaFX меняет также высоту тона. Независимые Time Stretch и Pitch Shift доступны при экспорте в аудиостудии.","muted")));display(scroll(page),"Эквалайзер");}
+    @FXML public void showSettings(){
+        activePlaylist=null;refreshPage=this::showSettings;
+        FlowPane primaryThemes=new FlowPane(12,12),additionalThemes=new FlowPane(12,12);
+        EnumMap<Theme,Button> themeButtons=new EnumMap<>(Theme.class);
+        for(Theme value:Theme.values()){
+            HBox colors=row(new javafx.scene.shape.Circle(7,value.accentColor()),new javafx.scene.shape.Circle(7,value.secondaryColor()),new javafx.scene.shape.Circle(7,javafx.scene.paint.Color.web(value.surface())));
+            Label name=label(value.toString().replace(" · дополнительная",""),"tile-title");
+            Label type=label(value==Theme.OBSIDIAN_YELLOW?"Основная тема":value.ordinal()<5?"Новая палитра":"Сохранённая палитра","micro");
+            VBox preview=new VBox(12,colors,name,type);preview.setPrefSize(134,84);preview.setMinHeight(84);preview.setMaxHeight(84);
+            Button pick=button("","theme-option",()->{
+                theme=value;applyTheme(value);setting("theme",value.name());
+                themeButtons.forEach((palette,button)->button.setStyle("-fx-background-color:"+palette.panel()+";-fx-border-color:"+(palette==theme?palette.accent():palette.surface())+";-fx-border-width:"+(palette==theme?"2":"1")+";-fx-padding:15;"));
+                status("Тема "+value+" применена ко всему интерфейсу");
+            });
+            pick.setId("theme-"+value.name());pick.setGraphic(preview);pick.setMinSize(166,116);pick.setPrefSize(166,116);pick.setMaxSize(166,116);pick.setStyle("-fx-background-color:"+value.panel()+";-fx-border-color:"+(value==theme?value.accent():value.surface())+";-fx-border-width:"+(value==theme?"2":"1")+";-fx-padding:15;");
+            themeButtons.put(value,pick);(value.ordinal()<5?primaryThemes:additionalThemes).getChildren().add(pick);
+        }
+        CheckBox motion=new CheckBox("Уменьшить движение и интенсивность эффектов");motion.setSelected(reduced);
+        motion.selectedProperty().addListener((o,a,b)->{reduced=b;setting("reducedMotion",b.toString());updateVisualState();});
+        CheckBox animations=new CheckBox("Анимации интерфейса и визуализаций");animations.setSelected(animationsEnabled);
+        animations.selectedProperty().addListener((o,a,b)->{animationsEnabled=b;setting("animations.enabled",b.toString());updateVisualState();});
+        CheckBox visual=new CheckBox("Музыкальные визуализации");visual.setSelected(visualEnabled);
+        visual.selectedProperty().addListener((o,a,b)->{visualEnabled=b;setting("visual.enabled",b.toString());updateVisualState();});
+        CheckBox background=new CheckBox("Интерактивный фон: частицы, связи и глубина");background.setSelected(backgroundEnabled);
+        background.selectedProperty().addListener((o,a,b)->{backgroundEnabled=b;setting("background.enabled",b.toString());updateVisualState();});
+        ComboBox<VisualizerPane.Mode> modes=new ComboBox<>(FXCollections.observableArrayList(VisualizerPane.Mode.values()));modes.setValue(visualMode);
+        modes.setConverter(new javafx.util.StringConverter<>(){public String toString(VisualizerPane.Mode value){return DashboardView.modeName(value);}public VisualizerPane.Mode fromString(String value){return visualMode;}});
+        modes.valueProperty().addListener((o,a,b)->selectVisualMode(b));
+        ComboBox<VisualizerPane.Quality> quality=new ComboBox<>(FXCollections.observableArrayList(VisualizerPane.Quality.values()));quality.setValue(visualQuality);
+        quality.valueProperty().addListener((o,a,b)->{visualQuality=b;visualizer.setQuality(b);backdrop.setQuality(b.ordinal());setting("visual.quality",b.name());});
+        CheckBox ultraHd=new CheckBox("Black Hole · 4K Ultra HD · 3840 × 2160");ultraHd.setSelected(visualizer.isUltraHd());
+        ultraHd.selectedProperty().addListener((o,a,b)->{visualizer.setUltraHd(b);setting("visual.ultrahd",b.toString());});
+        ComboBox<Integer> fps=new ComboBox<>(FXCollections.observableArrayList(15,30,45,60));fps.setValue(visualFps);
+        fps.valueProperty().addListener((o,a,b)->{visualFps=b;setting("visual.fps",b.toString());updateVisualState();});
+        Slider intensity=new Slider(0,2,visualIntensity);intensity.setPrefWidth(260);Label amount=label(Math.round(visualIntensity*100)+"%","muted");
+        intensity.valueProperty().addListener((o,a,b)->{visualIntensity=b.doubleValue();amount.setText(Math.round(visualIntensity*100)+"%");updateVisualState();});
+        intensity.setOnMouseReleased(e->setting("visual.intensity",Double.toString(visualIntensity)));
+        intensity.setOnKeyReleased(e->setting("visual.intensity",Double.toString(visualIntensity)));
+        Slider idleSpeed=new Slider(0,2,visualIdleSpeed);idleSpeed.setId("visual-idle-speed");idleSpeed.setPrefWidth(260);idleSpeed.setBlockIncrement(.05);idleSpeed.setAccessibleText("Скорость без музыки");
+        Label idleAmount=label(Math.round(visualIdleSpeed*100)+"%","muted");
+        idleSpeed.valueProperty().addListener((o,a,b)->{visualIdleSpeed=b.doubleValue();idleAmount.setText(Math.round(visualIdleSpeed*100)+"%");updateVisualState();});
+        idleSpeed.setOnMouseReleased(e->setting("visual.idleSpeed",Double.toString(visualIdleSpeed)));idleSpeed.setOnKeyReleased(e->setting("visual.idleSpeed",Double.toString(visualIdleSpeed)));
+        Slider playingSpeed=new Slider(0,2,visualPlayingSpeed);playingSpeed.setId("visual-playing-speed");playingSpeed.setPrefWidth(260);playingSpeed.setBlockIncrement(.05);playingSpeed.setAccessibleText("Скорость при воспроизведении");
+        Label playingAmount=label(Math.round(visualPlayingSpeed*100)+"%","muted");
+        playingSpeed.valueProperty().addListener((o,a,b)->{visualPlayingSpeed=b.doubleValue();playingAmount.setText(Math.round(visualPlayingSpeed*100)+"%");updateVisualState();});
+        playingSpeed.setOnMouseReleased(e->setting("visual.playingSpeed",Double.toString(visualPlayingSpeed)));playingSpeed.setOnKeyReleased(e->setting("visual.playingSpeed",Double.toString(visualPlayingSpeed)));
+        var resetSpeed=button("Сбросить скорость","secondary",()->{idleSpeed.setValue(1);playingSpeed.setValue(.75);setting("visual.idleSpeed","1.0");setting("visual.playingSpeed","0.75");});
+        CheckBox adv=new CheckBox("Улучшенный режим: эквалайзер и аудиостудия");adv.setSelected(advanced);
+        adv.selectedProperty().addListener((o,a,b)->{advanced=b;updateAdvanced();setting("advanced",b.toString());});
+        TextField genres=new TextField(settings.getOrDefault("genres",""));genres.setPromptText("Жанры через запятую");
+        TextField artists=new TextField(settings.getOrDefault("artists",""));artists.setPromptText("Исполнители через запятую");
+        FlowPane graphicsOptions=new FlowPane(12,12);graphicsOptions.getChildren().addAll(row(label("Режим","muted"),modes),row(label("Качество","muted"),quality),row(label("FPS","muted"),fps));
+        VBox page=page("Настройки","Оформление, атмосфера и ваша музыка.",
+            card(label("Выберите своё настроение","section-title"),primaryThemes,label("Дополнительные темы","eyebrow"),additionalThemes),
+            card(label("Графика, которая слышит музыку","section-title"),graphicsOptions,ultraHd,row(label("Интенсивность","muted"),intensity,amount),row(label("Скорость без музыки","muted"),idleSpeed,idleAmount),row(label("Скорость при воспроизведении","muted"),playingSpeed,playingAmount),resetSpeed,visual,background,animations,motion,
+                label("4K повышает разрешение Black Hole, сохраняя его размер в интерфейсе. Для плавности на слабом ПК отключите 4K. При сворачивании отрисовка останавливается.","micro"),
+                button("Открыть визуализацию  →","text-button",this::showHome)),
+            card(label("Инструменты для вашего звука","section-title"),adv),
+            card(label("Музыкальные предпочтения","section-title"),genres,artists,button("Сохранить предпочтения","secondary",()->{setting("genres",genres.getText());setting("artists",artists.getText());status("Предпочтения сохранены");})),
+            card(label("Медиатека","section-title"),label("Оригиналы остаются на своих местах. Импорт, сканирование и анализ работают в фоне.","muted"),
+                row(button("Добавить папку","secondary",this::importFolder),button("Пересканировать","secondary",()->task("Сканирование папок…",library::rescan,()->reload(this::showSettings))),button("Импорт M3U8","secondary",this::importPlaylist))),
+            card(label("Один аккаунт на компьютере и телефоне","section-title"),label("Подключите собственный сервер, чтобы продолжать прослушивание на другом устройстве. Личная музыка отправляется только по вашему выбору.","muted"),button("Открыть серверную коллекцию","primary",this::showServer)),
+            card(label("Ваши данные","section-title"),label(library.dataDirectory().toString(),"micro"),button("Очистить историю","secondary",()->{if(confirm("Очистить историю?","Будет удалена только история прослушивания на этом компьютере."))task("Очистка…",library::clearHistory,()->status("История очищена"));}))
+        );
+        display(scroll(page),"Настройки");
+    }
+    private void importPlaylist(){FileChooser chooser=new FileChooser();chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Плейлист","*.m3u","*.m3u8"));java.io.File file=chooser.showOpenDialog(stage);if(file!=null)task("Импорт плейлиста…",()->{try{library.importM3u(file.toPath());}catch(Exception e){throw new RuntimeException(e);}},()->reload(this::showLibrary));}
+    private void updateAdvanced(){advancedNav.setVisible(advanced);advancedNav.setManaged(advanced);}
+    public void firstRun(){if(Boolean.parseBoolean(settings.get("onboarded")))return;Dialog<Void> dialog=new Dialog<>();dialog.initOwner(stage);dialog.setTitle("Добро пожаловать в Auralis");dialog.setHeaderText("Ваша музыка. Ваше пространство.");ComboBox<Theme> themes=new ComboBox<>(FXCollections.observableArrayList(Theme.values()));themes.setValue(theme);themes.setOnAction(e->{theme=themes.getValue();applyTheme(theme);setting("theme",theme.name());styleDialog(dialog);});TextField genres=new TextField();genres.setPromptText("Любимые жанры через запятую (необязательно)");TextField artists=new TextField();artists.setPromptText("Любимые исполнители (необязательно)");ComboBox<String> mode=new ComboBox<>(FXCollections.observableArrayList("Локальная музыка","Подключить сервер"));mode.setValue("Локальная музыка");dialog.getDialogPane().setContent(column(label("Язык интерфейса: русский","subtitle"),themes,mode,genres,artists,label("Добавить папку и настроить сервер можно сейчас или позже в настройках.","muted")));ButtonType folder=new ButtonType("Добавить папку",ButtonBar.ButtonData.OTHER);ButtonType start=new ButtonType("Начать",ButtonBar.ButtonData.OK_DONE);dialog.getDialogPane().getButtonTypes().addAll(folder,start);styleDialog(dialog);Node folderButton=dialog.getDialogPane().lookupButton(folder);folderButton.addEventFilter(javafx.event.ActionEvent.ACTION,e->{importFolder();e.consume();});dialog.setOnHidden(e->{setting("genres",genres.getText());setting("artists",artists.getText());setting("onboarded","true");if(mode.getValue().equals("Подключить сервер"))showServer();});dialog.show();}
+    private Map<String,Object> serverPlaybackState(){
+        Map<String,Object> state=new HashMap<>();
+        state.put("trackId",playback.current()==null?"":playback.current().id());state.put("positionSeconds",playback.positionProperty().get());state.put("playing",playback.playingProperty().get());
+        state.put("queue",playback.queue().stream().map(Track::id).toList());state.put("queueIndex",playback.queueIndex());state.put("shuffle",playback.shuffle());state.put("repeat",playback.repeat().name());return state;
+    }
+    private void restoreServerState(com.fasterxml.jackson.databind.JsonNode state){
+        applyRemoteSettings(state.path("settings"));if(state.path("localQueueIds").isEmpty()&&state.path("localTrackId").asText("").isBlank()){reload(()->status("Настройки восстановлены · на другом устройстве очередь пуста"));return;}final List<Track>[] restored=new List[]{List.of()};
+        task("Восстановление очереди…",()->{
+            List<Track> queue=new ArrayList<>();
+            if(state.path("localQueueIds").isArray())for(var id:state.path("localQueueIds"))queue.add(library.track(id.asText()).orElseThrow(()->new IllegalArgumentException("Трек очереди не найден в локальной копии")));
+            if(queue.isEmpty())queue.add(library.track(state.path("localTrackId").asText()).orElseThrow(()->new IllegalArgumentException("Трек не найден в локальной коллекции")));
+            restored[0]=List.copyOf(queue);
+        },()->reload(()->{
+            int index=Math.clamp(state.path("queueIndex").asInt(0),0,restored[0].size()-1);
+            playback.setShuffle(state.path("shuffle").asBoolean(false));
+            try{playback.setRepeat(PlaybackService.Repeat.valueOf(state.path("repeat").asText("OFF")));}catch(IllegalArgumentException ignored){playback.setRepeat(PlaybackService.Repeat.OFF);}
+            playback.restoreQueue(restored[0],index,state.path("positionSeconds").asDouble(0),state.path("playing").asBoolean(false));
+            updateDockQueue();status("Очередь и позиция восстановлены");
+        }));
+    }
+    private void applyRemoteSettings(com.fasterxml.jackson.databind.JsonNode remote){
+        if(remote.hasNonNull("theme"))try{theme=Theme.valueOf(remote.path("theme").asText().trim().toUpperCase(Locale.ROOT).replace(' ','_'));setting("theme",theme.name());}catch(IllegalArgumentException ignored){}
+        if(remote.has("advancedMode")){advanced=remote.path("advancedMode").asBoolean();setting("advanced",Boolean.toString(advanced));}
+        if(remote.has("reducedMotion")){reduced=remote.path("reducedMotion").asBoolean();setting("reducedMotion",Boolean.toString(reduced));}
+        if(remote.has("visualMode"))try{selectVisualMode(VisualizerPane.parseMode(remote.path("visualMode").asText()));}catch(IllegalArgumentException ignored){}
+        if(remote.has("visualQuality"))try{visualQuality=VisualizerPane.Quality.valueOf(remote.path("visualQuality").asText());visualizer.setQuality(visualQuality);setting("visual.quality",visualQuality.name());}catch(IllegalArgumentException ignored){}
+        if(remote.has("visualFps")){visualFps=Math.clamp(remote.path("visualFps").asInt(45),15,60);setting("visual.fps",Integer.toString(visualFps));}
+        if(remote.has("visualIntensity")){double value=remote.path("visualIntensity").asDouble(.9);if(Double.isFinite(value)){visualIntensity=Math.clamp(value,0,2);setting("visual.intensity",Double.toString(visualIntensity));}}
+        for(String key:List.of("visualIdleSpeed","visualPlayingSpeed")){var node=remote.path(key);if(node.isNumber()&&Double.isFinite(node.asDouble())&&node.asDouble()>=0&&node.asDouble()<=2){if(key.equals("visualIdleSpeed"))visualIdleSpeed=node.asDouble();else visualPlayingSpeed=node.asDouble();setting(key.equals("visualIdleSpeed")?"visual.idleSpeed":"visual.playingSpeed",Double.toString(node.asDouble()));}}
+        if(remote.has("visualEnabled")){visualEnabled=remote.path("visualEnabled").asBoolean();setting("visual.enabled",Boolean.toString(visualEnabled));}
+        if(remote.has("backgroundEnabled")){backgroundEnabled=remote.path("backgroundEnabled").asBoolean();setting("background.enabled",Boolean.toString(backgroundEnabled));}
+        if(remote.has("animationsEnabled")){animationsEnabled=remote.path("animationsEnabled").asBoolean();setting("animations.enabled",Boolean.toString(animationsEnabled));}
+        applyTheme(theme);updateAdvanced();updateVisualState();
+    }
+    private void showServer(){
+        ServerView view=new ServerView(library,worker,stage,this::error,this::status,track->reload(()->play(List.of(track),0)),this::serverPlaybackState,this::restoreServerState);
+        view.onLibraryChanged(()->{for(String key:List.of("genres","artists"))settings.put(key,library.setting(key,library.setting("preferences."+key,"")));reload(null);});
+        display(scroll(view.build()),"Сервер");
+    }
+    public void smokeCheck(){for(Theme t:Theme.values()){applyTheme(t);showHome();snapshot("home-"+t.name().toLowerCase(Locale.ROOT));}applyTheme(theme);showLibrary();snapshot("library");showFavorites();snapshot("favorites");showWave();snapshot("wave");showSettings();snapshot("settings");advanced=true;updateAdvanced();showEqualizer();snapshot("equalizer");showHome();if(root.lookup(".player")==null||root.lookup(".sidebar")==null)throw new IllegalStateException("Shell missing");}
+    private void snapshot(String name){try{root.applyCss();root.layout();root.setOpacity(1);for(Node node:pageHost.getChildren()){node.setOpacity(1);node.setTranslateY(0);}Path directory=library.dataDirectory().resolve("screenshots");Files.createDirectories(directory);javax.imageio.ImageIO.write(javafx.embed.swing.SwingFXUtils.fromFXImage(root.getScene().snapshot(null),null),"png",directory.resolve(name+".png").toFile());}catch(Exception e){throw new IllegalStateException("Screenshot failed: "+name,e);}}
+    @Override public void close(){savePosition();recordListen(true);if(saveTimer!=null)saveTimer.stop();visualizer.close();backdrop.close();playback.close();if(editor!=null)editor.close();}
+}

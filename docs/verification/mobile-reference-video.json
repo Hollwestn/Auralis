@@ -1,0 +1,16 @@
+{
+  "platform": "React Native Web / Edge",
+  "video": {
+    "muted": true,
+    "volume": 0,
+    "loop": true,
+    "rate": 1,
+    "width": 720,
+    "height": 1280,
+    "time": 0.319951,
+    "duration": 9.966667
+  },
+  "pausedWithMusic": true,
+  "mediaAuthentication": "ephemeral-account QA proxy; native header transport is not verified by this web test",
+  "nativeDeviceTested": false
+}

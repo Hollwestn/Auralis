@@ -1,0 +1,50 @@
+[
+  {
+    "mode": "Black Hole",
+    "rendered": true,
+    "meanRgb": 100.09555083144369,
+    "pixelSha256": "092b0deac8971bf06f413c0013c8ac437b83bcfe7eb48260acaa1e78bac0a59d"
+  },
+  {
+    "mode": "Nebula Drift",
+    "rendered": true,
+    "meanRgb": 110.82683767951625,
+    "pixelSha256": "518183130b893391df8f18dbec830fcc1ea4c647e7af9045504d03ef5bf66054"
+  },
+  {
+    "mode": "Resonance",
+    "rendered": true,
+    "meanRgb": 18.124031084656085,
+    "pixelSha256": "0741aa06e2050adc8f236bf95e6a50643a824207adfc46064b7decc1cf41f606"
+  },
+  {
+    "mode": "Photon Tunnel",
+    "rendered": true,
+    "meanRgb": 68.87555083144368,
+    "pixelSha256": "155f1f6072c2bbfc4cb083984bbb3e07bab3c6348ed9fa423efc1265cf6a03b6"
+  },
+  {
+    "mode": "Prism Bloom",
+    "rendered": true,
+    "meanRgb": 50.58814578609221,
+    "pixelSha256": "76e726a951f28bfca9ca87cfa1eb0b6f565e21932a68d056112431b5167ec52c"
+  },
+  {
+    "mode": "Magnetic Field",
+    "rendered": true,
+    "meanRgb": 19.477487244897958,
+    "pixelSha256": "8dec50fe03e63266b827040d6d36690f42fd5f32342472ffc25ea7e076149c87"
+  },
+  {
+    "mode": "Ocean Caustics",
+    "rendered": true,
+    "meanRgb": 39.85998299319728,
+    "pixelSha256": "eb3c53296545fd0f0a27fecbe977d76efe44108762104697ee454843c87b9521"
+  },
+  {
+    "mode": "Fractal Cathedral",
+    "rendered": true,
+    "meanRgb": 61.040719009826155,
+    "pixelSha256": "4f711cb91998eaf7464714a8b5b18784e2fdc00ca6ff2f6d3100b595b04bc3ef"
+  }
+]

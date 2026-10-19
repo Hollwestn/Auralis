@@ -1,0 +1,79 @@
+[
+  {
+    "name": "Obsidian Yellow",
+    "quality": 2,
+    "energy": 29269107,
+    "differenceFromObsidian": 0,
+    "liquidInteriorMean": null
+  },
+  {
+    "name": "Monochrome",
+    "quality": 2,
+    "energy": 34708284,
+    "differenceFromObsidian": 14872737,
+    "liquidInteriorMean": null
+  },
+  {
+    "name": "Crimson Noir",
+    "quality": 2,
+    "energy": 37035130,
+    "differenceFromObsidian": 9416319,
+    "liquidInteriorMean": null
+  },
+  {
+    "name": "Deep Violet",
+    "quality": 2,
+    "energy": 42111194,
+    "differenceFromObsidian": 18716913,
+    "liquidInteriorMean": null
+  },
+  {
+    "name": "Arctic Silver",
+    "quality": 2,
+    "energy": 47605101,
+    "differenceFromObsidian": 20196150,
+    "liquidInteriorMean": null
+  },
+  {
+    "name": "Jade",
+    "quality": 2,
+    "energy": 45256307,
+    "differenceFromObsidian": 20313554,
+    "liquidInteriorMean": null
+  },
+  {
+    "name": "Amber",
+    "quality": 2,
+    "energy": 41409384,
+    "differenceFromObsidian": 12141107,
+    "liquidInteriorMean": null
+  },
+  {
+    "name": "Azure",
+    "quality": 2,
+    "energy": 43363707,
+    "differenceFromObsidian": 21379052,
+    "liquidInteriorMean": null
+  },
+  {
+    "name": "Liquid · 0",
+    "quality": 0,
+    "energy": 11792669,
+    "differenceFromObsidian": null,
+    "liquidInteriorMean": 0.3946861584870589
+  },
+  {
+    "name": "Liquid · 1",
+    "quality": 1,
+    "energy": 11886090,
+    "differenceFromObsidian": null,
+    "liquidInteriorMean": 0.3946861584870589
+  },
+  {
+    "name": "Liquid · 2",
+    "quality": 2,
+    "energy": 11919119,
+    "differenceFromObsidian": null,
+    "liquidInteriorMean": 0.3946861584870589
+  }
+]

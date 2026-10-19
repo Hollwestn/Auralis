@@ -1,0 +1,278 @@
+precision highp float;
+uniform vec2 u_resolution;
+uniform vec2 u_aspect;
+uniform float u_time;
+uniform float u_mode;
+uniform float u_intensity;
+uniform float u_quality;
+uniform vec3 u_accent;
+uniform vec3 u_view;
+uniform vec4 u_audio;
+uniform float u_flash;
+uniform float u_bands[32];
+uniform sampler2D u_cover;
+uniform float u_hasCover;
+const float PI=3.14159265359;
+mat2 rot(float a){float c=cos(a),s=sin(a);return mat2(c,-s,s,c);}
+float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+float hash3(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}
+float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
+float fbm(vec2 p){float v=0.,a=.5;for(int i=0;i<5;i++){if(float(i)>2.+u_quality)break;v+=a*noise(p);p=rot(.53)*p*2.07+7.1;a*=.48;}return v;}
+vec3 palette(float x){return .52+.48*cos(6.28318*(vec3(.13,.42,.65)+x));}
+vec3 tint(vec3 natural,float amount){return mix(natural,natural*(.45+u_accent*1.05),amount);}
+vec3 sky(vec3 d){
+ vec2 p=vec2(atan(d.z,d.x),asin(clamp(d.y,-1.,1.)));
+ float dust=fbm(p*3.+vec2(.8,-1.5));float lane=exp(-pow((p.y+.26*sin(p.x*1.7))/.2,2.));
+ vec3 c=mix(vec3(.007,.012,.027),vec3(.052,.028,.014),dust)*lane*pow(dust,2.2);
+ for(int i=0;i<3;i++){float scale=95.+float(i)*101.;vec2 grid=p*scale,cell=floor(grid),local=fract(grid)-.5;
+  float seed=hash(cell+float(i)*71.);float star=exp(-dot(local,local)*(350.+float(i)*220.))*step(.978,seed);
+  c+=mix(vec3(.45,.67,1.),vec3(1.,.76,.43),hash(cell+19.))*star*(.5+seed)*(.8+float(i)*.35);}
+ return c;
+}
+// A three-dimensional emitting disk traced through a curved ray field.
+// The approved disk geometry is unchanged; camera orbit and palette are independent of audio.
+vec3 rgbHsv(vec3 c){
+ vec4 k=vec4(0.,-1./3.,2./3.,-1.);
+ vec4 p=mix(vec4(c.bg,k.wz),vec4(c.gb,k.xy),step(c.b,c.g));
+ vec4 q=mix(vec4(p.xyw,c.r),vec4(c.r,p.yzx),step(p.x,c.r));
+ float d=q.x-min(q.w,q.y),e=.000001;
+ return vec3(abs(q.z+(q.w-q.y)/(6.*d+e)),d/(q.x+e),q.x);
+}
+vec3 hsvRgb(vec3 c){
+ vec3 p=abs(fract(c.xxx+vec3(0.,2./3.,1./3.))*6.-3.);
+ return c.z*mix(vec3(1.),clamp(p-1.,0.,1.),c.y);
+}
+vec3 holePalette(vec3 warm){
+ vec3 original=vec3(248./255.,211./255.,74./255.);
+ if(dot(u_accent-original,u_accent-original)<.00000001)return warm;
+ vec3 source=rgbHsv(original),target=rgbHsv(u_accent),color=rgbHsv(warm);
+ if(target.y<.02)return warm; // The shared Monochrome conversion keeps its original luminance.
+ color.x=fract(target.x+(color.x-.065)*.45+1.);
+ color.y*=clamp(target.y/source.y,0.,1.35);
+ return hsvRgb(color);
+}
+vec3 hotPlasma(float heat){
+ return mix(vec3(1.,.035,.001),mix(vec3(1.,.39,.012),vec3(1.,.93,.61),smoothstep(.33,.85,heat)),smoothstep(.02,.4,heat));
+}
+vec4 accretion(vec3 p,float time){
+ float r=length(p.xz),a=atan(p.z,p.x);
+ if(r<.65||r>3.25)return vec4(0.);
+ float orbit=a-time*(.13+1.1/pow(r,1.5));
+ // Periodic coordinates keep the azimuth seam invisible; the inner disk shears faster.
+ vec2 ring=vec2(cos(orbit),sin(orbit));
+ float turbulence=fbm(ring*4.+vec2(r*3.4,r*.8));
+ float eddy=fbm(ring*9.+vec2(r*9.,-time*.025));
+ float weave=r*36.+turbulence*19.+eddy*8.+sin(orbit*3.+r*6.)*2.7;
+ float threads=pow(.5+.5*sin(weave),6.);
+ float fine=pow(.5+.5*sin(r*173.+turbulence*19.+eddy*7.),12.);
+ float inner=smoothstep(.65,.76,r),outer=1.-smoothstep(2.3,3.25+turbulence*.15,r);
+ float heat=exp(-(r-.76)*1.14);
+ float knots=.65+.7*eddy+.24*sin(orbit*5.+r*8.);
+ float power=(.3+threads*2.8+fine*.9)*heat*knots*inner*outer;
+ // Relativistic beaming is an artistic approximation, with a stable camera.
+ power*=.8+.35*dot(normalize(p.xz),vec2(.8,.6));
+ return vec4(hotPlasma(heat)*power*4.6,power);
+}
+vec3 blackHole(vec2 uv,float time,float flash){
+ vec2 aspect=vec2(u_aspect.x>0.?u_aspect.x:1.,u_aspect.y>0.?u_aspect.y:1.);
+ float compositionScale=mix(1.14,1.45,smoothstep(.85,1.85,u_resolution.x/u_resolution.y*aspect.x/aspect.y));
+ vec2 framed=uv/compositionScale;
+ float orbit=time*.04;
+ vec2 q=rot(.40+.045*sin(orbit))*framed;
+ vec3 eye=vec3(sin(orbit)*7.7,2.75,cos(orbit)*7.7),forward=normalize(-eye);
+ vec3 right=normalize(cross(forward,vec3(0.,1.,0.))),up=cross(right,forward);
+ vec3 ray=normalize(forward*3.5+right*q.x*2.25+up*q.y*2.25);
+ vec3 position=eye,emission=vec3(0.);float transmission=1.,closest=20.,hit=0.;
+ // Adaptive curved rays capture the disk in front of and behind the horizon.
+ for(int i=0;i<112;i++){
+  if(float(i)>=64.+u_quality*24.)break;
+  float radius=length(position);closest=min(closest,radius);
+  if(radius<.44){hit=1.;break;}
+  if(radius>10.&&dot(position,ray)>0.)break;
+  float stepSize=clamp(radius*.13,.045,.72);
+  vec3 gravity=-position*(.22/(radius*radius*radius));
+  vec3 direction=normalize(ray+gravity*stepSize);
+  vec3 next=position+direction*stepSize;
+  // Three independently projected slices make a finite, optically thin plasma volume.
+  for(int layer=0;layer<3;layer++){
+   float height=(float(layer)-1.)*.028;
+   if((position.y-height)*(next.y-height)<=0.&&abs(next.y-position.y)>.00001){
+    float part=clamp((height-position.y)/(next.y-position.y),0.,1.);
+    vec3 at=mix(position,next,part);vec4 plasma=accretion(at,time);
+    float grazing=clamp(.18/max(.08,abs(direction.y)),.35,1.6);
+    emission+=plasma.rgb*transmission*grazing*.42;
+    transmission*=exp(-plasma.a*.12*grazing);
+   }
+  }
+  position=next;ray=direction;
+ }
+ vec3 c=sky(ray)*transmission*(1.-hit)*.42;
+ // Projected optical bloom around the 3D disk, not a screen-space substitute for its surface.
+ float projected=length(vec2(q.x,q.y*2.5));
+ float halo=exp(-projected*projected*3.4);
+ float ringRadius=length(framed);
+ float haloRing=exp(-abs(ringRadius-.13)*38.);
+ c+=vec3(1.,.17,.004)*halo*.25+vec3(1.,.3,.014)*haloRing*.13;
+ c+=emission;
+ if(hit>.5)c+=vec3(.20,.035,.001)*(.35+halo*.45);
+ // The exact approved transient response is applied before the theme hue mapping.
+ c*=1.+flash*.6;c+=vec3(1.,.42,.045)*flash*halo*.17;
+ return holePalette(c);
+}
+// New scenes are original implementations; research references are documented in
+// docs/GRAPHICS_060.md. No third-party shader source or textures are embedded.
+vec3 spectralColor(float phase){
+ vec3 hsv=rgbHsv(u_accent);
+ return mix(hsvRgb(vec3(fract(hsv.x+phase*.075),hsv.y*.85,1.)),vec3(1.),.08);
+}
+float volumeNoise(vec3 p){
+ float z=floor(p.z),f=fract(p.z);f=f*f*(3.-2.*f);
+ return mix(fbm(p.xy+z*vec2(13.1,7.7)),fbm(p.xy+(z+1.)*vec2(13.1,7.7)),f);
+}
+vec3 nebulaDrift(vec2 uv,float time,vec4 audio){
+ vec3 ray=normalize(vec3(uv*1.7,1.4)),c=vec3(0.);float transmission=1.;
+ for(int i=0;i<38;i++){
+  if(float(i)>=18.+u_quality*10.)break;
+  float depth=float(i)*.12;vec3 p=ray*depth-vec3(0.,0.,1.8);
+  p.xy=rot(p.z*.45+time*.018)*p.xy;
+  float density=volumeNoise(p*2.+vec3(time*.025,0.,time*.015));
+  float shell=exp(-abs(length(p.xy)-(.43+.13*sin(p.z*2.8)))*6.);
+  density=pow(smoothstep(.28,.78,density),2.7)*shell*.32;
+  vec3 light=spectralColor(p.z*.5)*(1.+audio.x*1.7)+vec3(.55)*pow(density*6.,3.);
+  c+=transmission*density*light;transmission*=1.-density*.65;
+ }
+ c+=spectralColor(.8)*exp(-length(uv-vec2(.15,.1))*25.)*(.2+audio.z*.8);
+ c+=holePalette(sky(normalize(vec3(uv*2.,1.))))*.35;
+ return c;
+}
+vec3 resonance(vec2 uv,float time,vec4 audio){
+ vec2 p=rot(.15+time*.012)*uv*3.;float r=length(p);
+ float n=3.+audio.x*.24,m=5.+audio.y*.35;
+ float nodal=cos(n*PI*p.x)*cos(m*PI*p.y)-cos(m*PI*p.x)*cos(n*PI*p.y);
+ float grain=.4+.6*hash(floor(p*480.));
+ float sand=exp(-abs(nodal)*(26.+audio.z*18.))*grain;
+ float boundary=1.-smoothstep(.89,1.1,r);
+ float etching=exp(-abs(nodal)*6.)*.11;
+ vec3 c=spectralColor(nodal*.6)*(sand*.75+etching)*boundary;
+ c+=spectralColor(.8)*exp(-abs(r-.99)*180.)*.17;
+ return c*(.65+audio.x*1.4+audio.w*.5);
+}
+vec3 photonTunnel(vec2 uv,float time,vec4 audio){
+ vec3 c=vec3(0.);vec2 q=rot(.18)*uv;float travel=time*.18;
+ for(int i=0;i<28;i++){
+  if(float(i)>=14.+u_quality*7.)break;
+  float z=mod(float(i)*.32-travel,8.96)+.35;
+  vec2 p=q*z+vec2(sin(z*.45+time*.035)*.22,cos(z*.35)*.1);
+  p=rot(z*.045)*p;
+  vec2 box=abs(p)-vec2(.92,.65);float edge=abs(max(box.x,box.y));
+  float light=exp(-edge*180./z)+exp(-edge*22./z)*.1;
+  float gates=.25+.75*pow(.5+.5*cos(float(i)*1.8),3.);
+  c+=spectralColor(z*.12)*light*gates/(.7+z*.7)*(.65+audio.x*1.3);
+ }
+ c+=spectralColor(.4)*exp(-length(q)*20.)*.25;
+ return c;
+}
+float crystalSdf(vec3 p,float time){
+ p.xz=rot(time*.07)*p.xz;p.xy=rot(.32)*p.xy;
+ float d=(abs(p.x)+abs(p.y)*.82+abs(p.z)-.9)*.58;
+ d=max(d,abs(p.y)-.84);
+ return d;
+}
+vec3 prismBloom(vec2 uv,float time,vec4 audio){
+ vec3 ro=vec3(0.,.1,3.8),rd=normalize(vec3(uv*2.2,-3.));
+ float t=0.;vec3 p=ro;bool hit=false;
+ for(int i=0;i<64;i++){
+  p=ro+rd*t;float d=crystalSdf(p,time);
+  if(d<.0015){hit=true;break;}t+=d*.8;if(t>7.)break;
+ }
+ vec3 c=spectralColor(.5)*exp(-length(uv)*7.)*.035;
+ if(hit){
+  vec2 e=vec2(.002,0.);
+  vec3 n=normalize(vec3(crystalSdf(p+e.xyy,time)-crystalSdf(p-e.xyy,time),crystalSdf(p+e.yxy,time)-crystalSdf(p-e.yxy,time),crystalSdf(p+e.yyx,time)-crystalSdf(p-e.yyx,time)));
+  vec3 r=reflect(rd,n);float fresnel=pow(clamp(1.-dot(n,-rd),0.,1.),3.);
+  float light=.15+.8*max(0.,dot(n,normalize(vec3(-.6,1.,2.))));
+  float dispersion=pow(max(0.,sin(r.x*13.+r.y*8.+p.z*6.)),10.);
+  vec3 refracted=refract(rd,n,.66);
+  float internal=pow(.5+.5*sin(refracted.x*27.+refracted.y*19.+p.z*9.),22.);
+  float facet=pow(abs(sin(p.x*13.+p.y*17.+p.z*19.)),36.);
+  c=spectralColor(p.z+dispersion*.8)*light*(.07+dispersion*.85+internal*.65)+vec3(fresnel*.25);
+  c+=spectralColor(.6)*facet*.14;
+  c+=spectralColor(.7)*pow(max(0.,dot(r,normalize(vec3(-.5,.8,1.)))),32.)*3.;
+  c*=1.+audio.x*.65;c+=spectralColor(.8)*audio.z*fresnel*.5;
+ }
+ return c;
+}
+vec3 magneticField(vec2 uv,float time,vec4 audio){
+ vec3 c=vec3(0.);vec2 p=rot(.28)*uv*2.2;
+ for(int i=0;i<18;i++){
+  if(float(i)>=10.+u_quality*4.)break;
+  float fi=float(i),z=(fi/18.-.5)*1.2;
+  vec2 q=p*vec2(1.+abs(z)*.5,1.)+vec2(0.,z*.22);
+  float r=max(.01,length(q)),a=atan(q.y,q.x);
+  float field=r-pow(sin(a),2.)*(.45+fi*.095);
+  float filament=exp(-abs(field)*260.)+exp(-abs(field)*45.)*.07;
+  float stream=pow(.5+.5*cos(a*9.-time*.5+fi*2.),18.);
+  c+=spectralColor(z)*filament*(.14+stream*.65+audio.x*.4)*(1.-abs(z)*.5);
+ }
+ vec2 poles=abs(p)-vec2(0.,.14);
+ c+=spectralColor(.8)*exp(-length(poles)*22.)*(.2+audio.y*.5);
+ return c;
+}
+float causticCells(vec2 p,float time){
+ vec2 cell=floor(p),f=fract(p);float first=9.,second=9.;
+ for(int y=-1;y<=1;y++)for(int x=-1;x<=1;x++){
+  vec2 offset=vec2(float(x),float(y));vec2 seed=vec2(hash(cell+offset),hash(cell+offset+31.));
+  vec2 site=offset+.5+.35*sin(seed*6.283+time*.19)-f;float d=dot(site,site);
+  if(d<first){second=first;first=d;}else second=min(second,d);
+ }
+ return exp(-(sqrt(second)-sqrt(first))*32.);
+}
+vec3 oceanCaustics(vec2 uv,float time,vec4 audio){
+ vec2 p=uv*5.;p+=vec2(fbm(p*.6+time*.025),fbm(p*.6-time*.02+9.))*1.2;
+ float a=causticCells(p,time),b=causticCells(rot(.7)*p*1.63+4.,-time*.7);
+ float pool=exp(-dot(uv,uv)*2.);
+ vec3 c=spectralColor(-.65)*(.025+a*.22+b*.13)*pool;
+ c+=mix(spectralColor(.8),vec3(1.),.45)*pow(a*b,1.3)*(.8+audio.x*1.5+audio.z*.8)*pool;
+ return c;
+}
+float cathedralSdf(vec3 p,float time){
+ p.xy=rot(.18+time*.022)*p.xy;
+ p=mod(p+1.2,2.4)-1.2;
+ float gyroid=abs(dot(sin(p*3.6),cos(p.zxy*3.6)))/6.2-.027;
+ return max(gyroid,abs(p.z)-1.05);
+}
+vec3 fractalCathedral(vec2 uv,float time,vec4 audio){
+ vec3 ro=vec3(.2,.1,time*.06),rd=normalize(vec3(uv*1.5,1.4));
+ float t=.1;vec3 c=vec3(0.);
+ for(int i=0;i<64;i++){
+  if(float(i)>=32.+u_quality*16.)break;
+  vec3 p=ro+rd*t;float d=cathedralSdf(p,time);
+  c+=spectralColor(t*.17)*exp(-abs(d)*100.)*.022/(1.+t*t*.12)*(.65+audio.x*.9);
+  t+=max(.025,abs(d)*.65);if(t>7.)break;
+ }
+ return c;
+}
+
+void main(){
+ vec2 uv=(gl_FragCoord.xy-.5*u_resolution)/min(u_resolution.x,u_resolution.y);
+ uv*=vec2(u_aspect.x>0.?u_aspect.x:1.,u_aspect.y>0.?u_aspect.y:1.);
+ uv=(uv-u_view.xy)/max(.5,1.+u_view.z);
+ vec4 audio=clamp(u_audio,0.,1.)*clamp(u_intensity,0.,2.);
+
+ vec3 c;
+ if(u_mode<.5)c=blackHole(uv,u_time,clamp(u_flash*u_intensity,0.,1.));
+ else if(u_mode<1.5)c=nebulaDrift(uv,u_time,audio);
+ else if(u_mode<2.5)c=resonance(uv,u_time,audio);
+ else if(u_mode<3.5)c=photonTunnel(uv,u_time,audio);
+ else if(u_mode<4.5)c=prismBloom(uv,u_time,audio);
+ else if(u_mode<5.5)c=magneticField(uv,u_time,audio);
+ else if(u_mode<6.5)c=oceanCaustics(uv,u_time,audio);
+ else c=fractalCathedral(uv,u_time,audio);
+ if(u_mode>=.5)c*=1.+clamp(u_flash*u_intensity,0.,1.)*.75;
+ float chroma=max(u_accent.r,max(u_accent.g,u_accent.b))-min(u_accent.r,min(u_accent.g,u_accent.b));
+ c=mix(vec3(dot(c,vec3(.2126,.7152,.0722))),c,smoothstep(.02,.07,chroma));
+ c=max(c,vec3(0.));c=(c*(2.51*c+.03))/(c*(2.43*c+.59)+.14);
+ c=pow(clamp(c,0.,1.),vec3(.4545));
+ c*=1.-smoothstep(.35,1.25,length(uv))*.6;
+ gl_FragColor=vec4(c,1.);
+}

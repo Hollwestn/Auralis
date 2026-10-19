@@ -1,0 +1,150 @@
+{
+  "sourceFiles": 36,
+  "allMatch": true,
+  "files": [
+    {
+      "path": "src/app/player.tsx",
+      "sha256": "562DD09662B72F26EAF38BFD1C420EBC7CCE95ADB3036BE7EE3ED43200BAFA59"
+    },
+    {
+      "path": "src/app/visualizer.tsx",
+      "sha256": "2560F6CE41E77FA55B00F3D706A02B5AA36A444D3C88B9F269E651DB88BBFFCF"
+    },
+    {
+      "path": "src/app/_layout.tsx",
+      "sha256": "1298283B4BCDBEC1B318300E27778C9A642A4DCC396D4BACC3DF77589D5ADCDF"
+    },
+    {
+      "path": "src/components/AudioVisual.tsx",
+      "sha256": "DAF8EFB12DCC847982BD3B96A6844779BD3636B9C84817F04E3B6770E81ED2DB"
+    },
+    {
+      "path": "src/components/LaunchSequence.tsx",
+      "sha256": "3C8DA71624AD95DF31AC31B64D147A384188128CE8DE75103C169593CC5E46CE"
+    },
+    {
+      "path": "src/components/Login.tsx",
+      "sha256": "0DDAAF723B0037606D8D63549E27B1714951DE04BFC49F1E9F77F35800C38FAA"
+    },
+    {
+      "path": "src/components/NetworkBackdrop.tsx",
+      "sha256": "E9588EC3EAD7BB772F79FB97DAC4D0053A6702829B5573D438E37C3AC3AEE869"
+    },
+    {
+      "path": "src/components/ui.tsx",
+      "sha256": "A351020EAD548D1D5C8DF1C3471B627BB7CAC0F059924D128265F599A6448B21"
+    },
+    {
+      "path": "src/components/VisualControls.tsx",
+      "sha256": "FF4B44D8EEC6DA443C0D59D98561FC481125F15BF9DEAE0997BCACEC1BE097E7"
+    },
+    {
+      "path": "src/core/api.ts",
+      "sha256": "DC43F84B5B38B3A302D79B28C895FBC85A06A984AA7CA9A209923F269A321332"
+    },
+    {
+      "path": "src/core/AuralisProvider.tsx",
+      "sha256": "87E2E8C7EB724742D23033189E0FB86C8DD0C50E749B416AC5AA264300D3DD44"
+    },
+    {
+      "path": "src/core/local.ts",
+      "sha256": "E1ACA11FB1784D81321FE0E4C13929043C9FAC1FD5EEF972A9E7008B6A05CED5"
+    },
+    {
+      "path": "src/core/nativeAudio.ts",
+      "sha256": "037837BD0703536B1CA9B938789E791B34597DEBF73D260541B8A9B58FCBEF31"
+    },
+    {
+      "path": "src/core/paths.ts",
+      "sha256": "92D6B71108AEB914338FCBA70ECD29A722326937A5C699AC685CAD2B4C8E75AB"
+    },
+    {
+      "path": "src/core/settings.ts",
+      "sha256": "144CD53E7FAC3837A355867A224D95797963DADF6A9B9CE8CA24049FB52B24F3"
+    },
+    {
+      "path": "src/core/spectrum.ts",
+      "sha256": "3D49598525B978D62881B9A9CD47DC199583F2E623ECCFF82A501947A96E97A5"
+    },
+    {
+      "path": "src/core/storage.ts",
+      "sha256": "5720D20B25C7C5E6DA617657529DDB391BD3F9BC3DA9E345D7CB1BE6686AEEB2"
+    },
+    {
+      "path": "src/core/storage.web.ts",
+      "sha256": "7B143696A6D0DC4272A03DB0ADD318A2AAD5509A29E1246D5AA7C92C09C6E972"
+    },
+    {
+      "path": "src/core/theme.ts",
+      "sha256": "04FA6088EB8D42F5F660F251F6F3D1D2762986ABB3B48CD3E13003AA0549F4AD"
+    },
+    {
+      "path": "src/core/types.ts",
+      "sha256": "67B063F9ED29A0A52C4EF65E6D7AD2E904C9FA8BF47D11817D294B10AFC8F5B2"
+    },
+    {
+      "path": "src/visuals/cinematic.generated.ts",
+      "sha256": "3AADCA6B1A1E844E03C9BF6847D3F224571E1F0B418FD07BE9097AFA5ED9C0C4"
+    },
+    {
+      "path": "src/visuals/motion.ts",
+      "sha256": "EE4A0B3E21E5E04E914C9DC3DD7E4CB564C667154AD6A1FBB4754AD7A8015B43"
+    },
+    {
+      "path": "src/visuals/shaders.ts",
+      "sha256": "D8D7DD9963B0D1CCE8AF9AFB78FBC893989302F4C68D553E768D3895099C06A2"
+    },
+    {
+      "path": "src/app/(tabs)/index.tsx",
+      "sha256": "275D45CCE960DD6EE9E71814B4DA32C3B595E200CC8E4FAAB992B870086562C5"
+    },
+    {
+      "path": "src/app/(tabs)/library.tsx",
+      "sha256": "5EC417540323737F07EC71F379AB1B18676253C440FA2BA8AEB2B70EBF2F51E2"
+    },
+    {
+      "path": "src/app/(tabs)/search.tsx",
+      "sha256": "0553CE58323526DE5920C65D4EFB7272B0730256A0FD01D5DCCFDF122F0BD55F"
+    },
+    {
+      "path": "src/app/(tabs)/settings.tsx",
+      "sha256": "3AE3E09E7A5875F5CFB259C6D3778E9C37F408C714B75274273077E100A34CBC"
+    },
+    {
+      "path": "src/app/(tabs)/_layout.tsx",
+      "sha256": "F49069D7AAEAC529A9B88436CDC07C858FBF37427CF6F862078ACB9BC75DA2FB"
+    },
+    {
+      "path": "native/audio/AuralisPcmTap.kt",
+      "sha256": "29E8C439AEF00D5CC97543CE7AB3D2B1562300CE014C710B7EFF5CCD412AE00D"
+    },
+    {
+      "path": "native/audio/AuralisPcmTapTest.kt",
+      "sha256": "EF8429B35B66B65FDA7CD177CE30E4C4E81AFC65F87B024D224CC13C588A8B1E"
+    },
+    {
+      "path": "native/audio/AuralisSpectrumTap.swift",
+      "sha256": "3A385F2FD54C522265FE75975B7C0FC9E31F3CCB69CBAE69360FCE9DB0E42952"
+    },
+    {
+      "path": "plugins/withAuralisAndroid.cjs",
+      "sha256": "F6A19BB2090FFD15C182384D70E41CB01904EAF293171CB341C001E428E29DC4"
+    },
+    {
+      "path": "app.config.ts",
+      "sha256": "AAF4C8A7F67F9DB3309F74C89F5749AABB93C778B0341301143DC7585687E3FB"
+    },
+    {
+      "path": "package.json",
+      "sha256": "E5D3DCF6F3E0333BFF4319D79D1DFE7C634E4EE85E067BB4EBC5CD54DD81E29B"
+    },
+    {
+      "path": "package-lock.json",
+      "sha256": "8165F3C80ACCC33E00BAEA9458C06496544A01A63EA8102D17A0190E7D7D1705"
+    },
+    {
+      "path": "assets/auralis-icon.png",
+      "sha256": "36787AFB84B9FF4A1CE1BE1D1FA42627C14C04C230CE13046D097C68682D9C8A"
+    }
+  ]
+}

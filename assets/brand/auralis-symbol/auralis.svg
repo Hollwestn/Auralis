@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs><clipPath id="front"><rect x="0" y="512" width="1024" height="512"/></clipPath>
+<clipPath id="shape"><polygon points="411.4,295.3 411.4,643.9 713.2,469.6" fill="#000" stroke="#000" stroke-width="103.6" stroke-linejoin="round"/></clipPath></defs>
+<rect x="44" y="44" width="936" height="936" rx="221.4" fill="#0B0B0E" stroke="#2A2D37" stroke-width="6"/>
+<g transform="rotate(-20 512 512)"><path d="M106.9 512.0a405.1 155.4 0 1 0 810.1 0a405.1 155.4 0 1 0 -810.1 0ZM154.0 492.2a358.0 115.9 0 1 0 715.9 0a358.0 115.9 0 1 0 -715.9 0Z" fill="#F8D34A" fill-rule="evenodd"/></g>
+<polygon points="411.4,295.3 411.4,643.9 713.2,469.6" fill="#0B0B0E" stroke="#0B0B0E" stroke-width="145.1" stroke-linejoin="round"/>
+<polygon points="411.4,295.3 411.4,643.9 713.2,469.6" fill="#F8D34A" stroke="#F8D34A" stroke-width="103.6" stroke-linejoin="round"/>
+<g clip-path="url(#shape)"><g transform="rotate(-20 512 512)"><g clip-path="url(#front)"><path d="M106.9 512.0a405.1 155.4 0 1 0 810.1 0a405.1 155.4 0 1 0 -810.1 0ZM154.0 492.2a358.0 115.9 0 1 0 715.9 0a358.0 115.9 0 1 0 -715.9 0Z" fill="#0B0B0E" fill-rule="evenodd" stroke="#0B0B0E" stroke-width="41.4" stroke-linejoin="round"/></g></g></g>
+<g transform="rotate(-20 512 512)"><g clip-path="url(#front)"><path d="M106.9 512.0a405.1 155.4 0 1 0 810.1 0a405.1 155.4 0 1 0 -810.1 0ZM154.0 492.2a358.0 115.9 0 1 0 715.9 0a358.0 115.9 0 1 0 -715.9 0Z" fill="#F8D34A" fill-rule="evenodd"/></g></g>
+</svg>

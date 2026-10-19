@@ -1,0 +1,18 @@
+{
+  "version": "0.6.1",
+  "date": "2026-10-19",
+  "approved051ShaderPrefixUnchanged": true,
+  "approvedAudioEnvelopeClassUnchanged": true,
+  "shaderSha256": "fda6d5febe3199a75b1e8a6aee06bc6362a5f2a700f188867dd7f380689c6a61",
+  "desktopBinaryShaderMatchesSource": true,
+  "desktopBinaryClassesMatchSource": true,
+  "idleClockRate": 0.18,
+  "playingClockRate": 0.75,
+  "framebuffer": [
+    3840,
+    2160
+  ],
+  "deviceTested": true,
+  "idleSpeedDefault": 1,
+  "playingSpeedDefault": 0.75
+}

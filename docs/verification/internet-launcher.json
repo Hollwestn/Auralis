@@ -1,0 +1,28 @@
+{
+  "bashSyntax": "PASS",
+  "preflightCases": [
+    {
+      "case": "placeholder",
+      "status": "PASS",
+      "deploymentAllowed": false
+    },
+    {
+      "case": "weak_password",
+      "status": "PASS",
+      "deploymentAllowed": false
+    },
+    {
+      "case": "exposed_api",
+      "status": "PASS",
+      "deploymentAllowed": false
+    },
+    {
+      "case": "valid",
+      "status": "PASS",
+      "deploymentAllowed": true
+    }
+  ],
+  "composeYaml": "NOT_AVAILABLE",
+  "dockerCallsStubbed": true,
+  "actualVpsDeploymentTested": false
+}

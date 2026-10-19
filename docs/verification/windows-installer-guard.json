@@ -1,0 +1,29 @@
+[
+  {
+    "safeDetected": false,
+    "folder": "Q:\\.runtime\\msi-motion-audit\\fresh\\",
+    "actionResult": 1,
+    "legacyDetected": false,
+    "case": "fresh",
+    "conditionResult": 1,
+    "status": "PASS"
+  },
+  {
+    "folder": "Q:\\.runtime\\msi-motion-audit\\legacy_without_migration\\",
+    "case": "legacy_without_migration",
+    "safeDetected": false,
+    "actionResult": 1,
+    "conditionResult": 0,
+    "legacyDetected": true,
+    "status": "PASS"
+  },
+  {
+    "folder": "Q:\\.runtime\\msi-motion-audit\\migration_ready\\",
+    "legacyDetected": true,
+    "actionResult": 1,
+    "conditionResult": 1,
+    "case": "migration_ready",
+    "safeDetected": true,
+    "status": "PASS"
+  }
+]

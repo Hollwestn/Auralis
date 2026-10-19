@@ -1,0 +1,402 @@
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, AppState, Platform } from 'react-native';
+import { File } from 'expo-file-system';
+import * as DocumentPicker from 'expo-document-picker';
+import { randomUUID, getRandomValues } from 'expo-crypto';
+import { setAudioModeAsync, useAudioPlaylist, useAudioPlaylistStatus } from 'expo-audio';
+import { AuralisApi, ApiError } from './api';
+import { storage } from './storage';
+import { normalizeTheme, themes } from './theme';
+import { setNativeLoop, setNativeRate, setNativeVolume, setNativeRepeat } from './nativeAudio';
+import { acceptSpectrum, audioTelemetry, clearSpectrum, type SpectrumFrame } from './spectrum';
+import { visualModes, normalizeVisualPreferences, type VisualPreferences } from '../visuals/shaders';
+import { decodeSettings, defaultExperience, encodeSettings, type Experience } from './settings';
+import { isLocalSession, localSession, localAudioInfo, localTrackId, localWave, reconcileLocalLibrary, withoutLocalTrack } from './local';
+import type { CachedLibrary, HistoryEntry, OfflineTrack, Playback, Playlist, Preferences, Session, SyncedState, ThemeName, Track, WaveEntry } from './types';
+
+const empty: CachedLibrary = { tracks: [], favorites: [], playlists: [], history: [], preferences: { genres: [], artists: [] } };
+type PendingHistory = Omit<HistoryEntry, 'id'>;
+
+function useAuralisStore() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+  const [library, setLibraryState] = useState<CachedLibrary>(empty);
+  const libraryRef = useRef<CachedLibrary>(empty);
+  const [downloads, setDownloads] = useState<OfflineTrack[]>([]);
+  const [theme, setTheme] = useState<ThemeName>('ObsidianYellow');
+  const [visuals, setVisuals] = useState<VisualPreferences>(() => normalizeVisualPreferences(null));
+  const [experience, setExperience] = useState<Experience>(defaultExperience);
+  const [shuffleEnabled, setShuffleEnabled] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [online, setOnline] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [queue, setQueue] = useState<Track[]>([]);
+  const [current, setCurrent] = useState<Track | null>(null);
+  const [waveEntries, setWaveEntries] = useState<WaveEntry[]>([]);
+  const [downloading, setDownloading] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const importLock = useRef(false);
+  const [remotePlayback, setRemotePlayback] = useState<Playback | null>(null);
+  const player = useAudioPlaylist({ sources: [], updateInterval: 1000, loop: 'none' });
+  const status = useAudioPlaylistStatus(player);
+  const localMode = isLocalSession(session);
+  const api = useMemo(() => session && !isLocalSession(session) ? new AuralisApi(session.server, session.token) : null, [session]);
+  const version = useRef<SyncedState | null>(null);
+  const pendingHistory = useRef<PendingHistory[]>([]);
+  const historySending = useRef(false);
+  const syncConflict = useRef(false);
+  const sessionRef = useRef<Session | null>(null);
+  const cacheOwner = useRef('');
+  const setLibrary = useCallback((update: React.SetStateAction<CachedLibrary>) => {
+    const value = typeof update === 'function' ? update(libraryRef.current) : update;
+    libraryRef.current = value; setLibraryState(value);
+    const owner = sessionRef.current;
+    if (owner && cacheOwner.current === `${owner.server}|${owner.user.id}`) storage.saveLibrary(owner, value);
+  }, []);
+  const queueRef = useRef<Track[]>([]);
+  const activeTrack = useRef<Track | null>(null);
+  const activeQueueIndex = useRef(0);
+  const manualSkip = useRef(false);
+  const listened = useRef(0);
+  const lastPosition = useRef(0);
+  const localState = useRef<Record<string, unknown>>({});
+  const latest = useRef({ current, queue, theme, status });
+  const preferencesLatest = useRef({ visuals, experience });
+  useEffect(() => { latest.current = { current, queue, theme, status }; }, [current, queue, theme, status]);
+  useEffect(() => { preferencesLatest.current = { visuals, experience }; }, [visuals, experience]);
+
+  const report = useCallback((error: unknown) => {
+    setNotice(error instanceof Error ? error.message : 'Не удалось выполнить действие.');
+  }, []);
+
+  const flushHistory = useCallback(async () => {
+    if (!api || !session || historySending.current) return;
+    historySending.current = true;
+    try {
+      while (sessionRef.current === session && pendingHistory.current.length) {
+        const pending = pendingHistory.current;
+        const entry = pending[0];
+        await api.record(entry);
+        // A logout/account switch may replace the queue while the request is
+        // in flight. Never shift or submit another account's pending history.
+        if (sessionRef.current !== session || pendingHistory.current !== pending) return;
+        pending.shift(); storage.savePendingHistory(session, pending);
+      }
+    } finally { historySending.current = false; }
+  }, [api, session]);
+
+  const activate = useCallback(async (value: Session) => {
+    const [cached, offline, history, state] = await Promise.all([storage.library(value), storage.downloads(value), storage.pendingHistory(value), storage.localState(value)]);
+    cacheOwner.current = `${value.server}|${value.user.id}`;
+    const available = offline.filter(item => storage.exists(item.uri));
+    setLibrary(isLocalSession(value) ? reconcileLocalLibrary(cached || empty, available) : cached || empty); setDownloads(available);
+    setOnline(false); setNotice(''); setWaveEntries([]); pendingHistory.current = [];
+    pendingHistory.current = history as PendingHistory[]; localState.current = state;
+    setTheme(normalizeTheme(state.theme) || 'ObsidianYellow');
+    setVisuals(normalizeVisualPreferences(state.visuals));
+    setExperience({ ...defaultExperience, ...state.experience as Experience });
+    setRemotePlayback(state.playback as Playback || null);
+    await storage.saveSession(value); sessionRef.current = value; setSession(value);
+  }, [setLibrary]);
+  useEffect(() => { void setAudioModeAsync({ shouldPlayInBackground: experience.backgroundAudioEnabled }).catch(report); }, [experience.backgroundAudioEnabled, report]);
+
+  useEffect(() => {
+    const handle = player as unknown as { setSpectrumEnabled?: (enabled: boolean) => void; addListener: (name: 'spectrumUpdate', callback: (frame: SpectrumFrame) => void) => { remove: () => void } };
+    if (typeof handle.setSpectrumEnabled !== 'function') { audioTelemetry.supported = false; return; }
+    audioTelemetry.supported = true;
+    const enabled = () => handle.setSpectrumEnabled!(status.playing && visuals.enabled && AppState.currentState === 'active');
+    enabled();
+    const frames = handle.addListener('spectrumUpdate', acceptSpectrum);
+    const state = AppState.addEventListener('change', enabled);
+    return () => { handle.setSpectrumEnabled!(false); frames.remove(); state.remove(); clearSpectrum(); };
+  }, [player, status.playing, visuals.enabled]);
+
+  useEffect(() => {
+    void storage.session().then(async value => { if (value) await activate(value); }).catch(report).finally(() => setHydrated(true));
+    void setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: 'doNotMix' }).catch(report);
+  }, [activate, report]);
+
+  const refresh = useCallback(async () => {
+    if (session && isLocalSession(session)) {
+      const files = (await storage.downloads(session)).filter(item => storage.exists(item.uri));
+      if (sessionRef.current !== session) return;
+      setDownloads(files); setLibrary(value => reconcileLocalLibrary(value, files)); setNotice(''); return;
+    }
+    if (!api || !session) return;
+    setBusy(true);
+    try {
+      const [tracks, favorites, playlists, history, preferences, synced] = await Promise.all([api.catalog(), api.favorites(), api.playlists(), api.history(), api.preferences(), api.sync()]);
+      if (sessionRef.current !== session) return;
+      const value = { tracks, favorites, playlists, history, preferences };
+      setLibrary(value); storage.saveLibrary(session, value); setOnline(true);
+      version.current = synced;
+      if (!latest.current.current) {
+        setRemotePlayback(synced.playback);
+        const decoded = decodeSettings(synced.settings, latest.current.theme, preferencesLatest.current.visuals, preferencesLatest.current.experience);
+        setTheme(decoded.theme); setVisuals(decoded.visuals); setExperience(decoded.experience);
+      }
+      await flushHistory();
+    } catch (error) { setOnline(false); report(error); } finally { setBusy(false); }
+  }, [api, session, report, flushHistory, setLibrary]);
+  useEffect(() => { let active = true; queueMicrotask(() => { if (active && api) void refresh(); }); return () => { active = false; }; }, [api, refresh]);
+  const recordCurrent = useCallback(async (completed = false, skipped = false) => {
+    const track = activeTrack.current;
+    if (!track || !session || listened.current < 1) return;
+    const entry = { eventId: randomUUID(), playedAt: new Date().toISOString(), trackId: track.id, playedSeconds: Math.round(track.durationSeconds > 0 ? Math.min(track.durationSeconds, listened.current) : listened.current), completed, skipped };
+    listened.current = 0;
+    if (isLocalSession(session)) {
+      setLibrary(value => ({ ...value, history: [{ ...entry, id: entry.eventId }, ...value.history].slice(0, 2000) }));
+      return;
+    }
+    pendingHistory.current.push(entry); storage.savePendingHistory(session, pendingHistory.current);
+    if (api) {
+      try {
+        await flushHistory();
+      } catch { setOnline(false); }
+    }
+  }, [api, session, flushHistory, setLibrary]);
+
+  const sync = useCallback(async () => {
+    if (!session) return;
+    const state = latest.current;
+    const playback: Playback = state.current ? { trackId: state.current.id, positionSeconds: state.status.currentTime, queue: state.queue.map(t => t.id), queueIndex: state.status.currentIndex, repeat: state.status.loop === 'single' ? 'ONE' : state.status.loop === 'all' ? 'ALL' : 'OFF', shuffle: shuffleEnabled, playing: state.status.playing, device: 'mobile', source: state.current.source } : (remotePlayback || {});
+    localState.current = { ...localState.current, theme: state.theme, playback, visuals, experience };
+    storage.saveLocalState(session, localState.current);
+    if (!api) return;
+    if (!state.current || syncConflict.current) return; // Opening the app never replaces another device's position.
+    try {
+      const currentVersion = version.current || await api.sync();
+      if (state.queue[state.status.currentIndex]?.id !== state.current.id) return;
+      const saved = await api.saveSync({ version: currentVersion.version, settings: { ...currentVersion.settings, ...encodeSettings(state.theme, visuals, experience) }, playback: { ...playback, shuffle: shuffleEnabled } });
+      version.current = saved; setOnline(true);
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 409) {
+        const remote = await api.sync(); version.current = remote; setRemotePlayback(remote.playback);
+        syncConflict.current = true;
+        setNotice('Позиция изменилась на другом устройстве. В настройках можно продолжить с его места.');
+      } else { setOnline(false); }
+    }
+  }, [api, session, remotePlayback, visuals, experience, shuffleEnabled]);
+  useEffect(() => {
+    if (!session) return;
+    const timer = setInterval(() => { void sync().catch(report); }, 15_000);
+    const subscription = AppState.addEventListener('change', state => {
+      if (state !== 'active') { void sync().catch(report); void recordCurrent().catch(report); }
+    });
+    return () => { clearInterval(timer); subscription.remove(); };
+  }, [session, sync, recordCurrent, report]);
+
+  const play = useCallback(async (track: Track, items: Track[] = [track], position = 0, queueIndex?: number, shuffle = false) => {
+    if (!session) return;
+    try {
+      await recordCurrent(false, false);
+      const offline = downloads.find(item => item.track.id === track.id && storage.exists(item.uri));
+      if (!online && !offline) throw new Error(localMode ? 'Файл отсутствует во внутреннем хранилище. Добавьте его заново из памяти телефона.' : 'Трек не скачан. Подключитесь к серверу или выберите музыку в разделе «Скачано».');
+      listened.current = 0; lastPosition.current = position;
+      syncConflict.current = false;
+      const available = online ? items : items.filter(item => downloads.some(download => download.track.id === item.id && storage.exists(download.uri)));
+      queueRef.current = available; activeTrack.current = track;
+      player.pause(); player.clear();
+      for (const item of available) {
+        const saved = downloads.find(download => download.track.id === item.id && storage.exists(download.uri));
+        if (saved) player.add({ uri: saved.uri, name: item.title });
+        else if (api) player.add({ uri: api.stream(item.id), headers: { Authorization: `Bearer ${session.token}` }, name: item.title });
+      }
+      const requested = queueIndex !== undefined && available[queueIndex]?.id === track.id ? queueIndex : available.findIndex(item => item.id === track.id);
+      activeQueueIndex.current = Math.max(0, requested); setShuffleEnabled(shuffle);
+      player.skipTo(Math.max(0, requested));
+      player.setActiveForLockScreen(true, { title: track.title, artist: track.artist, albumTitle: track.album });
+      setQueue(available); setCurrent(track);
+      if (position > 0) await player.seekTo(position);
+      player.play(); setNotice('');
+    } catch (error) { report(error); }
+  }, [api, session, localMode, downloads, online, player, recordCurrent, report]);
+
+  useEffect(() => {
+    if (!localMode) return;
+    const subscription = player.addListener('playlistStatusUpdate', frame => {
+      const track = activeTrack.current;
+      if (!track || queueRef.current[frame.currentIndex]?.id !== track.id || !frame.isLoaded || !Number.isFinite(frame.duration) || frame.duration <= 0 || track.durationSeconds === frame.duration) return;
+      const updated = { ...track, durationSeconds: frame.duration };
+      setCurrent(updated); activeTrack.current = updated;
+      queueRef.current = queueRef.current.map(item => item.id === updated.id ? updated : item);
+      setLibrary(value => ({ ...value, tracks: value.tracks.map(item => item.id === updated.id ? updated : item), favorites: value.favorites.map(item => item.id === updated.id ? updated : item) }));
+    });
+    return () => subscription.remove();
+  }, [localMode, player, setLibrary]);
+
+  const next = useCallback(async (offset = 1, completed = false) => {
+    if (!activeTrack.current) return;
+    await recordCurrent(completed, !completed && offset === 1);
+    manualSkip.current = true;
+    if (offset < 0) player.previous(); else player.next();
+  }, [player, recordCurrent]);
+  useEffect(() => {
+    const subscription = player.addListener('trackChanged', ({ currentIndex }) => {
+      const track = queueRef.current[currentIndex];
+      if (!track || currentIndex === activeQueueIndex.current) return;
+      void recordCurrent(!manualSkip.current, manualSkip.current).catch(report);
+      manualSkip.current = false; lastPosition.current = 0;
+      activeTrack.current = track; activeQueueIndex.current = currentIndex; setCurrent(track);
+      player.updateLockScreenMetadata({ title: track.title, artist: track.artist, albumTitle: track.album });
+    });
+    return () => subscription.remove();
+  }, [player, recordCurrent, report]);
+  useEffect(() => {
+    if (status.playing && current) {
+      const difference = status.currentTime - lastPosition.current;
+      if (difference > 0 && difference < 300) listened.current += difference;
+    }
+    lastPosition.current = status.currentTime;
+  }, [status.currentTime, status.playing, current]);
+  useEffect(() => { if (status.didJustFinish) queueMicrotask(() => { void recordCurrent(true).catch(report); }); }, [status.didJustFinish, recordCurrent, report]);
+
+  const togglePlayback = async () => {
+    if (!current) return;
+    if (status.playing) { player.pause(); await recordCurrent(); await sync(); }
+    else { if (status.didJustFinish) await player.seekTo(0); player.play(); }
+  };
+  const seek = async (seconds: number) => { lastPosition.current = seconds; await player.seekTo(seconds); };
+  const setColorTheme = async (value: ThemeName) => {
+    setTheme(value);
+    if (session) { localState.current = { ...localState.current, theme: value }; storage.saveLocalState(session, localState.current); }
+    if (api) {
+      try {
+        const remote = await api.sync();
+        version.current = await api.saveSync({ ...remote, settings: { ...remote.settings, ...encodeSettings(value, visuals, experience) } });
+      } catch (error) { report(error); }
+    }
+  };
+  const setVisualPreferences = async (value: Partial<VisualPreferences>) => {
+    const next = normalizeVisualPreferences({ ...visuals, ...value, ...(value.quality ? { fps: value.quality === 'Eco' ? 15 as const : value.quality === 'Ultra' ? 60 as const : 30 as const } : {}) });
+    if (!visualModes.includes(next.mode)) return;
+    setVisuals(next);
+    if (session) { localState.current = { ...localState.current, visuals: next }; storage.saveLocalState(session, localState.current); }
+    if (api) { const remote = await api.sync(); version.current = await api.saveSync({ ...remote, settings: { ...remote.settings, ...encodeSettings(theme, next, experience) } }); }
+  };
+  const setExperiencePreferences = async (value: Partial<Experience>) => {
+    const next = { ...experience, ...value }; setExperience(next);
+    if (session) { localState.current = { ...localState.current, experience: next }; storage.saveLocalState(session, localState.current); }
+    if (api) { const remote = await api.sync(); version.current = await api.saveSync({ ...remote, settings: { ...remote.settings, ...encodeSettings(theme, visuals, next) } }); }
+  };
+  const favorite = async (track: Track) => {
+    if (!session) return;
+    const exists = library.favorites.some(item => item.id === track.id);
+    if (api) await api.favorite(track.id, !exists);
+    setLibrary(value => ({ ...value, favorites: exists ? value.favorites.filter(item => item.id !== track.id) : [...value.favorites, track] }));
+  };
+  const download = async (track: Track) => {
+    if (!session || !api || downloading) return;
+    const destination = storage.downloadTarget(session, track.id, track.mimeType);
+    setDownloading(track.id);
+    try {
+      await File.downloadFileAsync(api.stream(track.id), destination, { headers: { Authorization: `Bearer ${session.token}` }, idempotent: true });
+      const item: OfflineTrack = { track, uri: destination.uri, downloadedAt: new Date().toISOString() };
+      const previous = await storage.downloads(session);
+      const result = [...previous.filter(i => i.track.id !== track.id), item];
+      storage.saveDownloads(session, result);
+      if (sessionRef.current === session) setDownloads(result);
+    } catch (error) { if (destination.exists) destination.delete(); report(error); } finally { setDownloading(null); }
+  };
+  const removeDownload = (id: string) => {
+    if (!session) return;
+    const item = downloads.find(i => i.track.id === id);
+    if (item) storage.deleteFile(item.uri);
+    setDownloads(value => { const result = value.filter(i => i.track.id !== id); storage.saveDownloads(session, result); return result; });
+  };
+  const startWave = async (mode = 'MY_WAVE') => {
+    if (!session) return;
+    setBusy(true);
+    try {
+      const entries = api ? await api.wave(mode) : localWave(library, mode, localState.current.feedback as Record<string, string> || {}); setWaveEntries(entries);
+      if (!entries.length) throw new Error(localMode ? 'Добавьте музыку из памяти телефона в «Мою музыку». Волна выбирает треки из вашей локальной коллекции.' : 'В каталоге пока нет подходящей музыки. Добавьте свои файлы на сервер и выберите любимые жанры.');
+      await play(entries[0].track, entries.map(entry => entry.track));
+    } finally { setBusy(false); }
+  };
+  const resume = async () => {
+    if (!session) return;
+    const remote = online && api ? await api.sync() : null;
+    if (remote) version.current = remote;
+    const playback = remote?.playback || localState.current.playback as Playback || remotePlayback;
+    if (!playback?.trackId) throw new Error('Сохранённая позиция отсутствует.');
+    const tracks = [...library.tracks, ...downloads.map(item => item.track)];
+    const track = tracks.find(item => item.id === playback.trackId);
+    if (!track) throw new Error(localMode ? 'Сохранённый трек удалён из локальной библиотеки.' : 'Этот трек недоступен в серверной библиотеке. Локальную музыку ПК нужно отдельно добавить на сервер с вашего согласия.');
+    const items = playback.queue?.map(id => tracks.find(t => t.id === id)).filter((item): item is Track => !!item) || [track];
+    setNativeRepeat(player, playback.repeat || 'OFF');
+    await play(track, items.length ? items : [track], playback.positionSeconds || 0, playback.queueIndex, playback.shuffle || false);
+  };
+  const savePlaylist = async (playlist: Playlist) => { if (session) { const saved = api ? await api.savePlaylist(playlist) : { ...playlist, updatedAt: new Date().toISOString() }; setLibrary(value => ({ ...value, playlists: value.playlists.map(item => item.id === saved.id ? saved : item) })); } };
+  const createPlaylist = async (name: string) => { if (session && name.trim()) { const playlist = api ? await api.createPlaylist(name) : { id: randomUUID(), name: name.trim(), trackIds: [], updatedAt: new Date().toISOString() }; setLibrary(value => ({ ...value, playlists: [...value.playlists, playlist] })); } };
+  const deletePlaylist = async (id: string) => { if (session) { if (api) await api.deletePlaylist(id); setLibrary(value => ({ ...value, playlists: value.playlists.filter(item => item.id !== id) })); } };
+  const savePreferences = async (preferences: Preferences) => { if (session) { if (api) await api.savePreferences(preferences); setLibrary(value => ({ ...value, preferences })); } };
+  const feedback = async (action: string) => { if (current) { if (api) await api.feedback(current.id, action); else if (session) { localState.current.feedback = { ...localState.current.feedback as Record<string, string>, [current.id]: action }; storage.saveLocalState(session, localState.current); } } };
+  const clearHistory = async () => { if (session) { if (api) await api.clearHistory(); pendingHistory.current = []; storage.savePendingHistory(session, []); setLibrary(value => ({ ...value, history: [] })); } };
+  const importMusic = async () => {
+    if (!session || !localMode || importLock.current) return;
+    if (Platform.OS === 'web') throw new Error('Импорт музыки с телефона доступен в установленном приложении Android/iOS.');
+    importLock.current = true; setImporting(true);
+    let added = 0, duplicates = 0; const failures: string[] = [];
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: ['audio/*', 'application/ogg', 'application/x-flac'], multiple: true, copyToCacheDirectory: true });
+      if (result.canceled || sessionRef.current !== session) return;
+      for (const asset of result.assets) {
+        let destination: File | null = null;
+        try {
+          const info = localAudioInfo(asset.name, asset.mimeType), source = new File(asset.uri);
+          if (!source.exists || source.size === 0) throw new Error(`Файл «${asset.name}» пуст или недоступен.`);
+          const id = localTrackId(await source.digest('SHA-256'));
+          if (sessionRef.current !== session) break;
+          const previous = await storage.downloads(session);
+          if (previous.some(item => item.track.id === id && storage.exists(item.uri))) { duplicates++; continue; }
+          destination = storage.downloadTarget(session, id, info.mimeType);
+          await source.copy(destination, { overwrite: true });
+          if (sessionRef.current !== session) { destination.delete(); break; }
+          const track: Track = { id, title: info.title, artist: info.artist, album: '', genre: '', durationSeconds: 0, sizeBytes: destination.size, mimeType: info.mimeType, source: 'LOCAL', coverUrl: null };
+          const item: OfflineTrack = { track, uri: destination.uri, downloadedAt: new Date().toISOString() };
+          const files = [...previous.filter(value => value.track.id !== id), item];
+          storage.saveDownloads(session, files); setDownloads(files);
+          setLibrary(value => ({ ...value, tracks: [...value.tracks.filter(t => t.id !== id), track] })); added++; destination = null;
+        } catch (error) { if (destination?.exists) destination.delete(); failures.push(error instanceof Error ? error.message : `Не удалось добавить ${asset.name}`); }
+        finally { // Picker copies are temporary; never delete the user's original document.
+          const cached = new File(asset.uri); if (cached.uri.startsWith(storage.cacheRoot()) && cached.exists) cached.delete();
+        }
+      }
+      if (sessionRef.current === session) setNotice(`Добавлено: ${added}${duplicates ? ` · уже в библиотеке: ${duplicates}` : ''}${failures.length ? ` · ошибок: ${failures.length}. ${failures[0]}` : ''}`);
+    } finally { importLock.current = false; setImporting(false); }
+  };
+  const removeLocalTrack = async (id: string) => {
+    if (!session || !localMode || importLock.current) return;
+    if (queue.some(track => track.id === id)) { await recordCurrent(); player.pause(); player.clear(); player.setActiveForLockScreen(false); setCurrent(null); setQueue([]); activeTrack.current = null; queueRef.current = []; }
+    const item = downloads.find(value => value.track.id === id); if (item) storage.deleteFile(item.uri);
+    const files = downloads.filter(value => value.track.id !== id); storage.saveDownloads(session, files); setDownloads(files);
+    setLibrary(value => withoutLocalTrack(value, id)); setWaveEntries(value => value.filter(entry => entry.track.id !== id));
+    if ((localState.current.playback as Playback | undefined)?.queue?.includes(id)) { localState.current.playback = {}; storage.saveLocalState(session, localState.current); setRemotePlayback(null); }
+  };
+  const logout = async (deleteAccount = false) => {
+    if (downloading || importLock.current) throw new Error('Дождитесь завершения добавления музыки.');
+    if (!deleteAccount) await recordCurrent();
+    player.pause(); player.setActiveForLockScreen(false); player.clear(); activeTrack.current = null; queueRef.current = [];
+    if (session && deleteAccount && api) { await api.deleteAccount(); storage.deleteUser(session); }
+    else { await sync(); if (api) { try { await api.logout(); } catch { /* Offline local logout remains available. */ } } }
+    await storage.saveSession(null); sessionRef.current = null; cacheOwner.current = ''; setSession(null); setCurrent(null); setQueue([]); setLibrary(empty); setDownloads([]); setRemotePlayback(null); version.current = null;
+  };
+  const run = (task: () => Promise<unknown>) => { void task().catch(error => { report(error); Alert.alert('Auralis', error instanceof Error ? error.message : 'Не удалось выполнить действие.'); }); };
+
+  const setLoop = (value: boolean) => setNativeLoop(player, value);
+  const setRate = (value: number) => setNativeRate(player, value);
+  const setVolume = (value: number) => setNativeVolume(player, value);
+  const setRepeat = (value: 'OFF'|'ALL'|'ONE') => setNativeRepeat(player, value);
+  const shuffleQueue = async () => {
+    if (!current) return;
+    const others = queue.filter((_, index) => index !== status.currentIndex);
+    for (let index = others.length-1; index > 0; index--) { const random = getRandomValues(new Uint32Array(1))[0]; const target = random % (index+1); [others[index], others[target]] = [others[target], others[index]]; }
+    await play(current, [current, ...others], status.currentTime, 0, true);
+  };
+  return { session, localMode, enterLocal: () => activate(localSession), importMusic, importing, removeLocalTrack, hydrated, library, downloads, theme, visuals, experience, shuffleEnabled, shuffleQueue, setVisualPreferences, setExperiencePreferences, accent: themes[theme].accent, tint: themes[theme].tint, busy, online, notice, setNotice, activate, refresh, current, queue, status, play, next, togglePlayback, seek, favorite, download, removeDownload, downloading, waveEntries, startWave, remotePlayback, resume, sync, setColorTheme, savePlaylist, createPlaylist, deletePlaylist, savePreferences, feedback, clearHistory, logout, run, setLoop, setRepeat, setRate, setVolume };
+}
+
+type Store = ReturnType<typeof useAuralisStore>;
+const Context = createContext<Store | null>(null);
+export function AuralisProvider({ children }: { children: React.ReactNode }) { return <Context.Provider value={useAuralisStore()}>{children}</Context.Provider>; }
+export function useAuralis() { const value = useContext(Context); if (!value) throw new Error('Missing AuralisProvider'); return value; }

@@ -1,0 +1,26 @@
+{
+  "version": "0.6.1",
+  "versionCode": 10,
+  "device": "Samsung Galaxy S21",
+  "model": "SM-G991B",
+  "android": "15",
+  "installedApkSha256": "8EF018AD4F7043D4179063AB8358CB82C733E4DB636FC7AF4D89A2F819848844",
+  "installedApkMatchesDeliveredFile": true,
+  "introAndLogin": true,
+  "authenticatedHome": true,
+  "nativeServerPlayback": true,
+  "musicFlashesFromRealPcm": true,
+  "nativeGpuModes": 8,
+  "speedControlsIndependent": true,
+  "settingsSyncedToServer": true,
+  "speedDefaultsRestored": {
+    "idle": 1,
+    "playing": 0.75
+  },
+  "backgroundResume": true,
+  "temporaryAccountDeleted": true,
+  "returnedToAnonymousLogin": true,
+  "anonymousColdRestart": true,
+  "taskUsbReverseRemoved": true,
+  "a55Tested": false
+}

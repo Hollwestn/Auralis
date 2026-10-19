@@ -1,0 +1,506 @@
+[
+  {
+    "mode": "Black Hole",
+    "compiled": true,
+    "zeroInputPixelEnergy": 25121644,
+    "stableOnDrag": true,
+    "clickDifference": 0,
+    "bassDifference": 0,
+    "flashDifference": 6185642,
+    "fixedBlackHoleSize": true,
+    "audioDifference": 4118742,
+    "monochrome": true,
+    "zeroIntensity": true,
+    "variants": [
+      {
+        "quality": 0,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 0,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 1,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 1,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 2,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 2,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      }
+    ]
+  },
+  {
+    "mode": "Nebula Drift",
+    "compiled": true,
+    "zeroInputPixelEnergy": 46291802,
+    "stableOnDrag": true,
+    "clickDifference": 0,
+    "bassDifference": 19660232,
+    "flashDifference": 13209106,
+    "fixedBlackHoleSize": false,
+    "audioDifference": 18032885,
+    "monochrome": true,
+    "zeroIntensity": true,
+    "variants": [
+      {
+        "quality": 0,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 0,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 1,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 1,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 2,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 2,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      }
+    ]
+  },
+  {
+    "mode": "Resonance",
+    "compiled": true,
+    "zeroInputPixelEnergy": 3397261,
+    "stableOnDrag": true,
+    "clickDifference": 0,
+    "bassDifference": 3140503,
+    "flashDifference": 1202598,
+    "fixedBlackHoleSize": false,
+    "audioDifference": 3229719,
+    "monochrome": true,
+    "zeroIntensity": true,
+    "variants": [
+      {
+        "quality": 0,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 0,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 1,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 1,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 2,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 2,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      }
+    ]
+  },
+  {
+    "mode": "Photon Tunnel",
+    "compiled": true,
+    "zeroInputPixelEnergy": 21382914,
+    "stableOnDrag": true,
+    "clickDifference": 0,
+    "bassDifference": 15281846,
+    "flashDifference": 8586563,
+    "fixedBlackHoleSize": false,
+    "audioDifference": 13804551,
+    "monochrome": true,
+    "zeroIntensity": true,
+    "variants": [
+      {
+        "quality": 0,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 0,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 1,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 1,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 2,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 2,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      }
+    ]
+  },
+  {
+    "mode": "Prism Bloom",
+    "compiled": true,
+    "zeroInputPixelEnergy": 10352251,
+    "stableOnDrag": true,
+    "clickDifference": 0,
+    "bassDifference": 1850345,
+    "flashDifference": 3103456,
+    "fixedBlackHoleSize": false,
+    "audioDifference": 2079236,
+    "monochrome": true,
+    "zeroIntensity": true,
+    "variants": [
+      {
+        "quality": 0,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 0,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 1,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 1,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 2,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 2,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      }
+    ]
+  },
+  {
+    "mode": "Magnetic Field",
+    "compiled": true,
+    "zeroInputPixelEnergy": 6520747,
+    "stableOnDrag": true,
+    "clickDifference": 0,
+    "bassDifference": 4691074,
+    "flashDifference": 2605147,
+    "fixedBlackHoleSize": false,
+    "audioDifference": 4412084,
+    "monochrome": true,
+    "zeroIntensity": true,
+    "variants": [
+      {
+        "quality": 0,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 0,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 1,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 1,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 2,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 2,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      }
+    ]
+  },
+  {
+    "mode": "Ocean Caustics",
+    "compiled": true,
+    "zeroInputPixelEnergy": 13576450,
+    "stableOnDrag": true,
+    "clickDifference": 0,
+    "bassDifference": 268906,
+    "flashDifference": 6070495,
+    "fixedBlackHoleSize": false,
+    "audioDifference": 285582,
+    "monochrome": true,
+    "zeroIntensity": true,
+    "variants": [
+      {
+        "quality": 0,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 0,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 1,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 1,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 2,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 2,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      }
+    ]
+  },
+  {
+    "mode": "Fractal Cathedral",
+    "compiled": true,
+    "zeroInputPixelEnergy": 28296216,
+    "stableOnDrag": true,
+    "clickDifference": 0,
+    "bassDifference": 16595010,
+    "flashDifference": 12060452,
+    "fixedBlackHoleSize": false,
+    "audioDifference": 14915915,
+    "monochrome": true,
+    "zeroIntensity": true,
+    "variants": [
+      {
+        "quality": 0,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 0,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 1,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 1,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 2,
+        "resolution": [
+          320,
+          440
+        ],
+        "rendered": true
+      },
+      {
+        "quality": 2,
+        "resolution": [
+          440,
+          320
+        ],
+        "rendered": true
+      }
+    ]
+  }
+]

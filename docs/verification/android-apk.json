@@ -1,0 +1,33 @@
+{
+  "date": "2026-10-19",
+  "versionName": "0.6.2",
+  "versionCode": 11,
+  "file": "release/android/Auralis-Android-Test.apk",
+  "sha256": "5370071BCEB38EFDB94BFC5665B08B8D7C7B5E08975C171CA985018DEE86FE3A",
+  "sizeBytes": 33363584,
+  "architecture": "arm64-v8a",
+  "minSdk": 24,
+  "targetSdk": 36,
+  "compileSdk": 37,
+  "signatureType": "Android debug key, release build",
+  "signatureV2": "PASS",
+  "nativePcmTests": 3,
+  "matchedSourceFiles": 36,
+  "actualApkSourceMapCheckedFiles": [
+    "src/core/local.ts",
+    "src/core/storage.ts",
+    "src/core/AuralisProvider.tsx",
+    "src/components/Login.tsx",
+    "src/components/ui.tsx",
+    "src/app/(tabs)/library.tsx",
+    "src/app/(tabs)/index.tsx",
+    "src/app/(tabs)/settings.tsx",
+    "src/app/(tabs)/search.tsx",
+    "src/app/player.tsx",
+    "src/components/AudioVisual.tsx"
+  ],
+  "embeddedHermesBytes": 3236748,
+  "embeddedHermesSha256": "80359A875FB5FD3D8EECE25EBC55FB37B5F1E586209551532A3084548E0BC873",
+  "deviceTested": false,
+  "localMode": true
+}

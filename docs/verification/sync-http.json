@@ -1,0 +1,36 @@
+{
+  "testedAt" : "2026-10-18T06:26:44.614701200Z",
+  "server" : "Packaged Spring Boot3.5.16 + Java25, actual NIO2 loopback HTTP, file H2 migrated V1 to V2",
+  "clients" : "Packaged actual Desktop ServerClient + core SQLite + ffmpeg, two sessions and two isolated local libraries",
+  "fixtureSha256" : {
+    "qa-660.wav" : "06ac767c2b37e58d1c9f6d1a2b61359ebcc5b71d65d6f5e7a6ce6eea13db0a1a",
+    "qa-440.wav" : "77fab209a49f97c9fea8b718b265f6d96b90d6749c543991a6b5b688d71a2f80"
+  },
+  "checks" : {
+    "local_real_ffmpeg_import" : "PASS",
+    "cold_pc_does_not_erase_phone_favorite" : "PASS",
+    "unchanged_pc_adopts_phone_unfavorite" : "PASS",
+    "pull_preserves_unsent_local_favorite" : "PASS",
+    "local_favorite_pushes_after_pull" : "PASS",
+    "pull_preserves_unsent_local_unfavorite" : "PASS",
+    "local_unfavorite_pushes_after_pull" : "PASS",
+    "failed_sent_marker_does_not_echo_original_history" : "PASS",
+    "first_history_transfer" : "PASS",
+    "history_preserves_original_timestamp" : "PASS",
+    "lost_ack_retry_has_one_server_event" : "PASS",
+    "event_key_payload_conflict_409" : "PASS",
+    "remote_history_import_once" : "PASS",
+    "history_does_not_echo_back" : "PASS",
+    "duplicate_queue_order_and_index_restored" : "PASS",
+    "position_and_playback_modes_restored" : "PASS",
+    "both_downloaded_files_have_original_sha256" : "PASS",
+    "all_visual_settings_and_unknown_fields_survive" : "PASS",
+    "local_only_queue_has_explicit_error_and_no_remote_mutation" : "PASS",
+    "stale_playlist_cannot_overwrite_other_device" : "PASS",
+    "deleted_server_track_keeps_local_file_and_favorite" : "PASS",
+    "invalid_deleted_track_queue_does_not_replace_state" : "PASS",
+    "history_import_is_idempotent_across_restart" : "PASS"
+  },
+  "checkCount" : 23,
+  "notTested" : [ "PostgreSQL/Docker/Caddy runtime", "ServerView conflict-copy UI click flow", "Android device playback" ]
+}

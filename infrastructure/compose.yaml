@@ -1,0 +1,59 @@
+name: auralis
+services:
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: auralis
+      POSTGRES_USER: auralis
+      POSTGRES_PASSWORD: ${AURALIS_DB_PASSWORD:?Set AURALIS_DB_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auralis -d auralis"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+  api:
+    build:
+      context: ..
+      dockerfile: infrastructure/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      AURALIS_BIND: 0.0.0.0
+      AURALIS_DB_URL: jdbc:postgresql://db:5432/auralis
+      AURALIS_DB_USER: auralis
+      AURALIS_DB_PASSWORD: ${AURALIS_DB_PASSWORD:?Set AURALIS_DB_PASSWORD}
+      AURALIS_STORAGE: /app/data/music
+      AURALIS_IMPORT_ROOT: ${AURALIS_IMPORT_ROOT:-}
+      AURALIS_IMPORT_ADMIN_USER_ID: ${AURALIS_IMPORT_ADMIN_USER_ID:-}
+      AURALIS_MAX_USER_BYTES: ${AURALIS_MAX_USER_BYTES:-21474836480}
+    ports:
+      - "${AURALIS_HTTP_BIND:-127.0.0.1}:8080:8080"
+    volumes:
+      - music_data:/app/data
+      - ./import:/import:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=350m,mode=1777
+  https:
+    image: caddy:2
+    profiles: ["https"]
+    restart: unless-stopped
+    depends_on: [api]
+    environment:
+      AURALIS_DOMAIN: ${AURALIS_DOMAIN:-localhost}
+    ports: ["80:80", "443:443", "443:443/udp"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+volumes:
+  postgres_data:
+  music_data:
+  caddy_data:
+  caddy_config:

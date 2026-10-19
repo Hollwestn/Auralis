@@ -1,0 +1,12 @@
+{
+  "runtime": "Packaged Java25 + JavaFX25.0.2 + FFmpeg",
+  "uiFlowChecks": 44,
+  "systemJavaAndFfmpegRemovedFromPath": true,
+  "date": "2026-10-19",
+  "fixtureImport": "PASS",
+  "dataIsolation": ".runtime/motion-final-portable-smoke and .runtime/motion-ui/data",
+  "uiFlow": "PASS",
+  "uiSmoke": "PASS",
+  "embeddedJarMatchesVerifiedJar": true,
+  "version": "0.6.1"
+}

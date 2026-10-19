@@ -1,0 +1,450 @@
+[
+  {
+    "mode": "Black Hole",
+    "theme": "ObsidianYellow",
+    "energy": 11049316,
+    "differenceFromObsidian": 0,
+    "monochrome": null
+  },
+  {
+    "mode": "Black Hole",
+    "theme": "Monochrome",
+    "energy": 13102767,
+    "differenceFromObsidian": 5597525,
+    "monochrome": true
+  },
+  {
+    "mode": "Black Hole",
+    "theme": "CrimsonNoir",
+    "energy": 14152360,
+    "differenceFromObsidian": 3457480,
+    "monochrome": null
+  },
+  {
+    "mode": "Black Hole",
+    "theme": "DeepViolet",
+    "energy": 15522138,
+    "differenceFromObsidian": 6821890,
+    "monochrome": null
+  },
+  {
+    "mode": "Black Hole",
+    "theme": "ArcticSilver",
+    "energy": 17779804,
+    "differenceFromObsidian": 7817072,
+    "monochrome": null
+  },
+  {
+    "mode": "Black Hole",
+    "theme": "Jade",
+    "energy": 15396931,
+    "differenceFromObsidian": 8925779,
+    "monochrome": null
+  },
+  {
+    "mode": "Black Hole",
+    "theme": "Amber",
+    "energy": 14776234,
+    "differenceFromObsidian": 3727378,
+    "monochrome": null
+  },
+  {
+    "mode": "Black Hole",
+    "theme": "Azure",
+    "energy": 15366630,
+    "differenceFromObsidian": 9763258,
+    "monochrome": null
+  },
+  {
+    "mode": "Nebula Drift",
+    "theme": "ObsidianYellow",
+    "energy": 14575853,
+    "differenceFromObsidian": 0,
+    "monochrome": null
+  },
+  {
+    "mode": "Nebula Drift",
+    "theme": "Monochrome",
+    "energy": 17124807,
+    "differenceFromObsidian": 2553412,
+    "monochrome": true
+  },
+  {
+    "mode": "Nebula Drift",
+    "theme": "CrimsonNoir",
+    "energy": 14770372,
+    "differenceFromObsidian": 1762725,
+    "monochrome": null
+  },
+  {
+    "mode": "Nebula Drift",
+    "theme": "DeepViolet",
+    "energy": 15132522,
+    "differenceFromObsidian": 3320395,
+    "monochrome": null
+  },
+  {
+    "mode": "Nebula Drift",
+    "theme": "ArcticSilver",
+    "energy": 16655892,
+    "differenceFromObsidian": 2913543,
+    "monochrome": null
+  },
+  {
+    "mode": "Nebula Drift",
+    "theme": "Jade",
+    "energy": 15151470,
+    "differenceFromObsidian": 3221119,
+    "monochrome": null
+  },
+  {
+    "mode": "Nebula Drift",
+    "theme": "Amber",
+    "energy": 14885538,
+    "differenceFromObsidian": 584265,
+    "monochrome": null
+  },
+  {
+    "mode": "Nebula Drift",
+    "theme": "Azure",
+    "energy": 15470739,
+    "differenceFromObsidian": 3873800,
+    "monochrome": null
+  },
+  {
+    "mode": "Resonance",
+    "theme": "ObsidianYellow",
+    "energy": 1076352,
+    "differenceFromObsidian": 0,
+    "monochrome": null
+  },
+  {
+    "mode": "Resonance",
+    "theme": "Monochrome",
+    "energy": 1258962,
+    "differenceFromObsidian": 182610,
+    "monochrome": true
+  },
+  {
+    "mode": "Resonance",
+    "theme": "CrimsonNoir",
+    "energy": 1042772,
+    "differenceFromObsidian": 141194,
+    "monochrome": null
+  },
+  {
+    "mode": "Resonance",
+    "theme": "DeepViolet",
+    "energy": 1110940,
+    "differenceFromObsidian": 276572,
+    "monochrome": null
+  },
+  {
+    "mode": "Resonance",
+    "theme": "ArcticSilver",
+    "energy": 1210904,
+    "differenceFromObsidian": 208184,
+    "monochrome": null
+  },
+  {
+    "mode": "Resonance",
+    "theme": "Jade",
+    "energy": 1115668,
+    "differenceFromObsidian": 254284,
+    "monochrome": null
+  },
+  {
+    "mode": "Resonance",
+    "theme": "Amber",
+    "energy": 1097153,
+    "differenceFromObsidian": 49313,
+    "monochrome": null
+  },
+  {
+    "mode": "Resonance",
+    "theme": "Azure",
+    "energy": 1100553,
+    "differenceFromObsidian": 292235,
+    "monochrome": null
+  },
+  {
+    "mode": "Photon Tunnel",
+    "theme": "ObsidianYellow",
+    "energy": 6997469,
+    "differenceFromObsidian": 0,
+    "monochrome": null
+  },
+  {
+    "mode": "Photon Tunnel",
+    "theme": "Monochrome",
+    "energy": 8187297,
+    "differenceFromObsidian": 1189828,
+    "monochrome": true
+  },
+  {
+    "mode": "Photon Tunnel",
+    "theme": "CrimsonNoir",
+    "energy": 6591898,
+    "differenceFromObsidian": 990861,
+    "monochrome": null
+  },
+  {
+    "mode": "Photon Tunnel",
+    "theme": "DeepViolet",
+    "energy": 7199301,
+    "differenceFromObsidian": 2003762,
+    "monochrome": null
+  },
+  {
+    "mode": "Photon Tunnel",
+    "theme": "ArcticSilver",
+    "energy": 7804413,
+    "differenceFromObsidian": 1412884,
+    "monochrome": null
+  },
+  {
+    "mode": "Photon Tunnel",
+    "theme": "Jade",
+    "energy": 7241393,
+    "differenceFromObsidian": 1782922,
+    "monochrome": null
+  },
+  {
+    "mode": "Photon Tunnel",
+    "theme": "Amber",
+    "energy": 7122418,
+    "differenceFromObsidian": 360559,
+    "monochrome": null
+  },
+  {
+    "mode": "Photon Tunnel",
+    "theme": "Azure",
+    "energy": 6944683,
+    "differenceFromObsidian": 2258360,
+    "monochrome": null
+  },
+  {
+    "mode": "Prism Bloom",
+    "theme": "ObsidianYellow",
+    "energy": 3308770,
+    "differenceFromObsidian": 0,
+    "monochrome": null
+  },
+  {
+    "mode": "Prism Bloom",
+    "theme": "Monochrome",
+    "energy": 3662616,
+    "differenceFromObsidian": 353846,
+    "monochrome": true
+  },
+  {
+    "mode": "Prism Bloom",
+    "theme": "CrimsonNoir",
+    "energy": 3220463,
+    "differenceFromObsidian": 296793,
+    "monochrome": null
+  },
+  {
+    "mode": "Prism Bloom",
+    "theme": "DeepViolet",
+    "energy": 3395189,
+    "differenceFromObsidian": 586875,
+    "monochrome": null
+  },
+  {
+    "mode": "Prism Bloom",
+    "theme": "ArcticSilver",
+    "energy": 3549302,
+    "differenceFromObsidian": 429256,
+    "monochrome": null
+  },
+  {
+    "mode": "Prism Bloom",
+    "theme": "Jade",
+    "energy": 3402091,
+    "differenceFromObsidian": 527699,
+    "monochrome": null
+  },
+  {
+    "mode": "Prism Bloom",
+    "theme": "Amber",
+    "energy": 3367289,
+    "differenceFromObsidian": 115625,
+    "monochrome": null
+  },
+  {
+    "mode": "Prism Bloom",
+    "theme": "Azure",
+    "energy": 3277818,
+    "differenceFromObsidian": 696404,
+    "monochrome": null
+  },
+  {
+    "mode": "Magnetic Field",
+    "theme": "ObsidianYellow",
+    "energy": 1526400,
+    "differenceFromObsidian": 0,
+    "monochrome": null
+  },
+  {
+    "mode": "Magnetic Field",
+    "theme": "Monochrome",
+    "energy": 1811316,
+    "differenceFromObsidian": 284916,
+    "monochrome": true
+  },
+  {
+    "mode": "Magnetic Field",
+    "theme": "CrimsonNoir",
+    "energy": 1485896,
+    "differenceFromObsidian": 211028,
+    "monochrome": null
+  },
+  {
+    "mode": "Magnetic Field",
+    "theme": "DeepViolet",
+    "energy": 1576219,
+    "differenceFromObsidian": 422879,
+    "monochrome": null
+  },
+  {
+    "mode": "Magnetic Field",
+    "theme": "ArcticSilver",
+    "energy": 1736725,
+    "differenceFromObsidian": 330017,
+    "monochrome": null
+  },
+  {
+    "mode": "Magnetic Field",
+    "theme": "Jade",
+    "energy": 1583928,
+    "differenceFromObsidian": 390204,
+    "monochrome": null
+  },
+  {
+    "mode": "Magnetic Field",
+    "theme": "Amber",
+    "energy": 1555734,
+    "differenceFromObsidian": 72642,
+    "monochrome": null
+  },
+  {
+    "mode": "Magnetic Field",
+    "theme": "Azure",
+    "energy": 1570968,
+    "differenceFromObsidian": 464304,
+    "monochrome": null
+  },
+  {
+    "mode": "Ocean Caustics",
+    "theme": "ObsidianYellow",
+    "energy": 4450523,
+    "differenceFromObsidian": 0,
+    "monochrome": null
+  },
+  {
+    "mode": "Ocean Caustics",
+    "theme": "Monochrome",
+    "energy": 5556300,
+    "differenceFromObsidian": 1105777,
+    "monochrome": true
+  },
+  {
+    "mode": "Ocean Caustics",
+    "theme": "CrimsonNoir",
+    "energy": 4642256,
+    "differenceFromObsidian": 632549,
+    "monochrome": null
+  },
+  {
+    "mode": "Ocean Caustics",
+    "theme": "DeepViolet",
+    "energy": 4651005,
+    "differenceFromObsidian": 1303548,
+    "monochrome": null
+  },
+  {
+    "mode": "Ocean Caustics",
+    "theme": "ArcticSilver",
+    "energy": 5364863,
+    "differenceFromObsidian": 1291478,
+    "monochrome": null
+  },
+  {
+    "mode": "Ocean Caustics",
+    "theme": "Jade",
+    "energy": 4661208,
+    "differenceFromObsidian": 1298477,
+    "monochrome": null
+  },
+  {
+    "mode": "Ocean Caustics",
+    "theme": "Amber",
+    "energy": 4554520,
+    "differenceFromObsidian": 193589,
+    "monochrome": null
+  },
+  {
+    "mode": "Ocean Caustics",
+    "theme": "Azure",
+    "energy": 4944867,
+    "differenceFromObsidian": 1688902,
+    "monochrome": null
+  },
+  {
+    "mode": "Fractal Cathedral",
+    "theme": "ObsidianYellow",
+    "energy": 9583630,
+    "differenceFromObsidian": 0,
+    "monochrome": null
+  },
+  {
+    "mode": "Fractal Cathedral",
+    "theme": "Monochrome",
+    "energy": 11306328,
+    "differenceFromObsidian": 1722698,
+    "monochrome": true
+  },
+  {
+    "mode": "Fractal Cathedral",
+    "theme": "CrimsonNoir",
+    "energy": 8992476,
+    "differenceFromObsidian": 1430276,
+    "monochrome": null
+  },
+  {
+    "mode": "Fractal Cathedral",
+    "theme": "DeepViolet",
+    "energy": 9840457,
+    "differenceFromObsidian": 2913961,
+    "monochrome": null
+  },
+  {
+    "mode": "Fractal Cathedral",
+    "theme": "ArcticSilver",
+    "energy": 10767464,
+    "differenceFromObsidian": 2004076,
+    "monochrome": null
+  },
+  {
+    "mode": "Fractal Cathedral",
+    "theme": "Jade",
+    "energy": 9904677,
+    "differenceFromObsidian": 2580335,
+    "monochrome": null
+  },
+  {
+    "mode": "Fractal Cathedral",
+    "theme": "Amber",
+    "energy": 9728472,
+    "differenceFromObsidian": 509526,
+    "monochrome": null
+  },
+  {
+    "mode": "Fractal Cathedral",
+    "theme": "Azure",
+    "energy": 9564539,
+    "differenceFromObsidian": 3189879,
+    "monochrome": null
+  }
+]

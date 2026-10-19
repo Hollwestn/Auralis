@@ -1,0 +1,20 @@
+[
+  {
+    "source": "assets\\brand\\auralis-symbol\\auralis.ico",
+    "target": "assets\\auralis.ico",
+    "byteExact": true,
+    "sha256": "C97FFC10279F31D22363061FA0835742FA25E09D5618E15DAF5AC3228D49EBF0"
+  },
+  {
+    "source": "assets\\brand\\auralis-symbol\\png\\auralis-1024.png",
+    "target": "apps\\mobile\\assets\\auralis-icon.png",
+    "byteExact": true,
+    "sha256": "36787AFB84B9FF4A1CE1BE1D1FA42627C14C04C230CE13046D097C68682D9C8A"
+  },
+  {
+    "source": "assets\\brand\\auralis-symbol\\png\\auralis-256.png",
+    "target": "apps\\desktop\\src\\main\\resources\\io\\auralis\\desktop\\auralis-icon.png",
+    "byteExact": true,
+    "sha256": "C4C833591582D4C60FF5D6DB6B84C34E0ACF72CC091B4F49AEB6E2BEADE1E92B"
+  }
+]
