@@ -10,6 +10,8 @@
 
 **Музыкальная платформа для Windows и Android с личной библиотекой, собственным сервером и графикой, которая слышит звук.**
 
+**Скачать:** [Windows EXE](https://github.com/inalinalinal2009-oss/Auralis/releases/download/v0.6.2-preview/Auralis-Setup.exe) · [Android APK — Preview](https://github.com/inalinalinal2009-oss/Auralis/releases/download/v0.6.2-preview/Auralis-Android-Test.apk) · [Сервер ZIP](https://github.com/inalinalinal2009-oss/Auralis/releases/download/v0.6.2-preview/Auralis-Server-Internet.zip)
+
 [Что скачать](docs/GITHUB_DOWNLOADS.md) · [Начать слушать](START_HERE.md) · [Без аккаунта](docs/MOBILE_OFFLINE_GUIDE.md) · [Свой сервер](docs/SERVER_INTERNET_GUIDE.md) · [Сборки](https://github.com/inalinalinal2009-oss/Auralis/releases)
 
 ![Java 25](https://img.shields.io/badge/Java-25-F8D34A?style=flat-square&labelColor=101116)
