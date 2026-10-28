@@ -18,6 +18,7 @@ export const storage = {
   async localState(value: Session) { return states.get(key(value)) || {}; },
   saveLocalState(value: Session, data: Record<string, unknown>) { states.set(key(value), structuredClone(data)); },
   downloadTarget() { throw new Error('Для скачивания музыки установите нативный Auralis APK или iOS-приложение.'); },
+  coverTarget() { throw new Error('Обложки локальных файлов доступны в установленном приложении.'); },
   exists(_uri: string) { return false; },
   deleteFile(_uri: string) {},
   deleteUser(value: Session) { libraries.delete(key(value)); histories.delete(key(value)); states.delete(key(value)); },

@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuralis } from '../../core/AuralisProvider';
 import { Button, Empty, Field, IconButton, Notice, Screen, TrackRow, ui } from '../../components/ui';
 import { palette as p } from '../../core/theme';
+import { smartCollection, type SmartCollection } from '../../core/collections';
 import type { Playlist, Track } from '../../core/types';
 
 export default function Library() {
@@ -14,13 +15,14 @@ export default function Library() {
   const [editing, setEditing] = useState<Playlist | null>(null);
   const selected = app.library.playlists.find(item => item.id === filter);
   const tracks = useMemo(() => {
+    if (['recent', 'rediscover', 'mostPlayed'].includes(filter)) return smartCollection(app.library, filter as SmartCollection);
     if (filter === 'favorites') return app.library.favorites;
     if (filter === 'downloads') return app.downloads.map(item => item.track);
     if (filter === 'history') return [...new Set(app.library.history.map(item => item.trackId))].map(id => app.library.tracks.find(track => track.id === id)).filter((track): track is Track => !!track);
     if (selected) return selected.trackIds.map(id => app.library.tracks.find(track => track.id === id)).filter((track): track is Track => !!track);
     return app.library.tracks;
   }, [app.library, app.downloads, filter, selected]);
-  const filters = [{ id: 'all', name: 'Все' }, { id: 'favorites', name: 'Избранное' }, ...(!app.localMode ? [{ id: 'downloads', name: 'Скачано' }] : []), { id: 'history', name: 'История' }, ...app.library.playlists];
+  const filters = [{ id: 'all', name: 'Все' }, { id: 'favorites', name: 'Избранное' }, ...(!app.localMode ? [{ id: 'downloads', name: 'Скачано' }] : []), { id: 'history', name: 'История' }, ...(app.localMode ? [{ id: 'recent', name: 'Недавно добавлено' }] : []), { id: 'rediscover', name: 'Открыть заново' }, { id: 'mostPlayed', name: 'Чаще слушаю' }, ...app.library.playlists];
   const save = async () => {
     if (editing) await app.savePlaylist({ ...editing, name: name.trim() }); else await app.createPlaylist(name.trim());
     setName(''); setEditing(null);

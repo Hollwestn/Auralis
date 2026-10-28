@@ -23,6 +23,16 @@ const testDirectory = path.join(audio, 'android/src/test/java/expo/modules/audio
 fs.mkdirSync(testDirectory, { recursive: true });
 fs.copyFileSync(path.join(root, 'native/audio/AuralisPcmTapTest.kt'), path.join(testDirectory, 'AuralisPcmTapTest.kt'));
 fs.copyFileSync(path.join(root, 'native/audio/AuralisSpectrumTap.swift'), path.join(audio, 'ios/AuralisSpectrumTap.swift'));
+fs.copyFileSync(path.join(root, 'native/audio/AuralisLocalMetadata.kt'), path.join(audio, kotlin, 'AuralisLocalMetadata.kt'));
+fs.copyFileSync(path.join(root, 'native/audio/AuralisLocalMetadata.swift'), path.join(audio, 'ios/AuralisLocalMetadata.swift'));
+fs.copyFileSync(path.join(root, 'native/audio/AuralisSleepTimer.kt'), path.join(audio, kotlin, 'AuralisSleepTimer.kt'));
+fs.copyFileSync(path.join(root, 'native/audio/AuralisSleepTimer.swift'), path.join(audio, 'ios/AuralisSleepTimer.swift'));
+edit(kotlin + 'AudioPlaylist.kt', '  private var currentRate = 1f', '  private var currentRate = 1f\n  val auralisSleep = AuralisSleepTimer(ref)');
+edit(kotlin + 'AudioModule.kt', '    Name("ExpoAudio")', '    Name("ExpoAudio")\n    AsyncFunction("readAuralisMetadata") { uri: String, coverUri: String -> AuralisLocalMetadata.read(context, uri, coverUri) }');
+edit('ios/AudioModule.swift', '    Name("ExpoAudio")', `    Name("ExpoAudio")
+    AsyncFunction("readAuralisMetadata") { (uri: String, coverUri: String) async throws -> [String: Any] in
+      return try await AuralisLocalMetadata.read(uri, coverUri)
+    }`);
 edit(kotlin + 'AudioPlaylist.kt', 'player = ExoPlayer.Builder(context)', 'player = ExoPlayer.Builder(context, AuralisRenderersFactory(context))');
 edit(kotlin + 'AudioPlaylist.kt', '  init {\n    installPlayerListeners()', '  init {\n    AuralisPcmBus.onFrame = { frame -> playerScope.launch { emit("spectrumUpdate", frame) } }\n    installPlayerListeners()');
 edit(kotlin + 'AudioPlaylist.kt', 'import java.lang.ref.WeakReference', 'import java.lang.ref.WeakReference\nimport kotlinx.coroutines.launch');
@@ -45,4 +55,13 @@ edit('ios/AudioModule.swift', '    Class(AudioPlaylist.self) {', `    Class(Audi
 edit('ios/AudioTapProcessor.h', '@property (nonatomic, readonly) BOOL isTapInstalled;', '@property (nonatomic, readonly) BOOL isTapInstalled;\n@property (nonatomic, assign) double sampleRate;');
 edit('ios/AudioTapProcessor.m', '  context->supportedTapProcessingFormat = true;', '  context->supportedTapProcessingFormat = processingFormat->mFormatID == kAudioFormatLinearPCM && (processingFormat->mFormatFlags & kAudioFormatFlagIsFloat) != 0;\n  AudioTapProcessor *processor = (__bridge AudioTapProcessor *)context->self;\n  processor.sampleRate = processingFormat->mSampleRate;');
 edit('ios/AudioTapProcessor.m', '  if (callback && bufferListInOut', '  if (context->supportedTapProcessingFormat && callback && bufferListInOut');
-console.log('Auralis: native own-player PCM spectrum and bearer playlist streaming patched (Expo Audio 58.0.9).');
+edit(kotlin + 'AudioPlaylist.kt', '    AuralisPcmBus.onFrame = null', '    AuralisPcmBus.onFrame = null\n    auralisSleep.cancel()');
+edit(kotlin + 'AudioModule.kt', '      Function("setSpectrumEnabled") { _: AudioPlaylist, enabled: Boolean -> AuralisPcmBus.enabled = enabled }', '      Function("setSpectrumEnabled") { _: AudioPlaylist, enabled: Boolean -> AuralisPcmBus.enabled = enabled }\n      AsyncFunction("setAuralisSleepTimer") { playlist: AudioPlaylist, seconds: Double -> playlist.auralisSleep.set(seconds) }.runOnQueue(Queues.MAIN)');
+edit('ios/AudioPlaylist.swift', '  let auralisSpectrum = AuralisSpectrumTap()', '  let auralisSpectrum = AuralisSpectrumTap()\n  let auralisSleep = AuralisSleepTimer()');
+edit('ios/AudioPlaylist.swift', '    auralisSpectrum.invalidate()', '    auralisSpectrum.invalidate()\n    auralisSleep.cancel()');
+edit('ios/AudioModule.swift', '        playlist.auralisSpectrum.refresh(player: playlist.ref)\n      }', `        playlist.auralisSpectrum.refresh(player: playlist.ref)
+      }
+      AsyncFunction("setAuralisSleepTimer") { (playlist: AudioPlaylist, seconds: Double) in
+        playlist.auralisSleep.set(seconds, player: playlist.ref)
+      }.runOnQueue(.main)`);
+console.log('Auralis: PCM spectrum, local artwork and native sleep timer patched (Expo Audio 58.0.9).');

@@ -1,5 +1,5 @@
 export type ThemeName = 'ObsidianYellow' | 'Monochrome' | 'CrimsonNoir' | 'DeepViolet' | 'ArcticSilver' | 'Jade' | 'Amber' | 'Azure';
-export type Track = { id: string; title: string; artist: string; album: string; genre: string; durationSeconds: number; sizeBytes: number; mimeType: string; source: 'SERVER' | 'LOCAL'; coverUrl: string | null };
+export type Track = { id: string; title: string; artist: string; album: string; genre: string; durationSeconds: number; sizeBytes: number; mimeType: string; source: 'SERVER' | 'LOCAL'; coverUrl: string | null; importedAt?: string };
 export type User = { id: string; email: string; displayName: string };
 export type Session = { token: string; user: User; server: string; mode?: 'local' | 'server' };
 export type Playlist = { id: string; name: string; trackIds: string[]; updatedAt: string; version?: number };
@@ -8,5 +8,5 @@ export type Preferences = { genres: string[]; artists: string[] };
 export type WaveEntry = { track: Track; score: number; reasons: string[] };
 export type Playback = { trackId?: string; positionSeconds?: number; queue?: string[]; queueIndex?: number; shuffle?: boolean; repeat?: 'OFF' | 'ALL' | 'ONE'; playing?: boolean; device?: string; source?: string };
 export type SyncedState = { version: number; settings: Record<string, unknown>; playback: Playback; updatedAt: string };
-export type OfflineTrack = { track: Track; uri: string; downloadedAt: string };
+export type OfflineTrack = { track: Track; uri: string; downloadedAt: string; metadataVersion?: number };
 export type CachedLibrary = { tracks: Track[]; playlists: Playlist[]; favorites: Track[]; history: HistoryEntry[]; preferences: Preferences };

@@ -57,3 +57,9 @@ docs/verification/*failure*
 docs/verification/android-device-*.png
 docs/verification/android-build-*.json
 docs/verification/android-cleanup.json
+
+# Store credentials and generated Linux installers
+**/credentials.json
+**/*.mobileprovision
+release/linux/*
+!release/linux/README.md

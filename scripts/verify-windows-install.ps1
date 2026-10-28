@@ -1,4 +1,4 @@
-param([string]$Installer='release/desktop/Auralis-0.3.1.msi')
+﻿param([string]$Installer='release/desktop/Auralis-0.3.1.msi')
 $ErrorActionPreference='Stop'
 $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 Set-Location -LiteralPath $projectRoot

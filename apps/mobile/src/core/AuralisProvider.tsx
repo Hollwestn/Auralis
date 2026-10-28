@@ -6,6 +6,8 @@ import { randomUUID, getRandomValues } from 'expo-crypto';
 import { setAudioModeAsync, useAudioPlaylist, useAudioPlaylistStatus } from 'expo-audio';
 import { AuralisApi, ApiError } from './api';
 import { storage } from './storage';
+import { readLocalMetadata } from './metadata';
+import { artworkSource } from './artwork';
 import { normalizeTheme, themes } from './theme';
 import { setNativeLoop, setNativeRate, setNativeVolume, setNativeRepeat } from './nativeAudio';
 import { acceptSpectrum, audioTelemetry, clearSpectrum, type SpectrumFrame } from './spectrum';
@@ -37,8 +39,24 @@ function useAuralisStore() {
   const [importing, setImporting] = useState(false);
   const importLock = useRef(false);
   const [remotePlayback, setRemotePlayback] = useState<Playback | null>(null);
+  const [sleepDeadline, setSleepDeadline] = useState(0);
+  const [sleepRemaining, setSleepRemaining] = useState(0);
   const player = useAudioPlaylist({ sources: [], updateInterval: 1000, loop: 'none' });
   const status = useAudioPlaylistStatus(player);
+  const setSleepTimer = useCallback(async (minutes: number) => {
+    if (![0, 5, 15, 30, 60].includes(minutes)) throw new Error('Выберите время таймера.');
+    const native = player as unknown as { setAuralisSleepTimer?: (seconds: number) => Promise<void> };
+    if (!native.setAuralisSleepTimer) throw new Error('Таймер сна доступен в новой нативной сборке приложения.');
+    await native.setAuralisSleepTimer(minutes * 60);
+    setSleepDeadline(minutes ? Date.now() + minutes * 60_000 : 0);
+    setSleepRemaining(minutes * 60);
+  }, [player]);
+  useEffect(() => {
+    if (!sleepDeadline) return;
+    const update = () => { const remaining = Math.max(0, Math.ceil((sleepDeadline - Date.now()) / 1000)); setSleepRemaining(remaining); if (!remaining) setSleepDeadline(0); };
+    const tick = setInterval(update, 1000), resume = AppState.addEventListener('change', update);
+    return () => { clearInterval(tick); resume.remove(); };
+  }, [sleepDeadline]);
   const localMode = isLocalSession(session);
   const api = useMemo(() => session && !isLocalSession(session) ? new AuralisApi(session.server, session.token) : null, [session]);
   const version = useRef<SyncedState | null>(null);
@@ -139,6 +157,30 @@ function useAuralisStore() {
     } catch (error) { setOnline(false); report(error); } finally { setBusy(false); }
   }, [api, session, report, flushHistory, setLibrary]);
   useEffect(() => { let active = true; queueMicrotask(() => { if (active && api) void refresh(); }); return () => { active = false; }; }, [api, refresh]);
+  // Migrate existing offline imports too: users need not delete/re-import music.
+  useEffect(() => {
+    if (!session || Platform.OS === 'web') return;
+    let cancelled = false;
+    void (async () => {
+      const files = await storage.downloads(session);
+      for (const item of files) {
+        if (cancelled || sessionRef.current !== session) return;
+        if (item.metadataVersion === 1 || !storage.exists(item.uri)) continue;
+        try {
+          const metadata = await readLocalMetadata(item.uri, storage.coverTarget(session, item.track.id).uri);
+          if (cancelled || sessionRef.current !== session) return;
+          const track = { ...item.track, ...(isLocalSession(session) ? metadata : { coverUrl: metadata.coverUrl || item.track.coverUrl }), importedAt: item.track.importedAt || item.downloadedAt };
+          // Re-read the manifest: importing/removing files may run while native code works.
+          const latest = await storage.downloads(session);
+          if (!latest.some(value => value.track.id === item.track.id)) { if (metadata.coverUrl) storage.deleteFile(metadata.coverUrl); continue; }
+          const next = latest.map(value => value.track.id === track.id ? { ...value, track, metadataVersion: 1 } : value);
+          storage.saveDownloads(session, next); setDownloads(next);
+          if (isLocalSession(session)) setLibrary(value => ({ ...value, tracks: value.tracks.map(t => t.id === track.id ? track : t), favorites: value.favorites.map(t => t.id === track.id ? track : t) }));
+        } catch { /* Unsupported container: keep playable file and filename labels; retry next launch. */ }
+      }
+    })().catch(report);
+    return () => { cancelled = true; };
+  }, [session, report, setLibrary]);
   const recordCurrent = useCallback(async (completed = false, skipped = false) => {
     const track = activeTrack.current;
     if (!track || !session || listened.current < 1) return;
@@ -291,7 +333,9 @@ function useAuralisStore() {
     setDownloading(track.id);
     try {
       await File.downloadFileAsync(api.stream(track.id), destination, { headers: { Authorization: `Bearer ${session.token}` }, idempotent: true });
-      const item: OfflineTrack = { track, uri: destination.uri, downloadedAt: new Date().toISOString() };
+      let coverUrl = track.coverUrl;
+      try { const metadata = await readLocalMetadata(destination.uri, storage.coverTarget(session, track.id).uri); coverUrl = metadata.coverUrl || coverUrl; } catch { /* Audio can play without embedded metadata. */ }
+      const item: OfflineTrack = { track: { ...track, coverUrl }, uri: destination.uri, downloadedAt: new Date().toISOString(), metadataVersion: 1 };
       const previous = await storage.downloads(session);
       const result = [...previous.filter(i => i.track.id !== track.id), item];
       storage.saveDownloads(session, result);
@@ -352,9 +396,12 @@ function useAuralisStore() {
           destination = storage.downloadTarget(session, id, info.mimeType);
           await source.copy(destination, { overwrite: true });
           if (sessionRef.current !== session) { destination.delete(); break; }
-          const track: Track = { id, title: info.title, artist: info.artist, album: '', genre: '', durationSeconds: 0, sizeBytes: destination.size, mimeType: info.mimeType, source: 'LOCAL', coverUrl: null };
-          const item: OfflineTrack = { track, uri: destination.uri, downloadedAt: new Date().toISOString() };
-          const files = [...previous.filter(value => value.track.id !== id), item];
+          let metadata = {}; let metadataVersion: number | undefined;
+          try { metadata = await readLocalMetadata(destination.uri, storage.coverTarget(session, id).uri); metadataVersion = 1; } catch { /* Some system decoders cannot read all tag containers. */ }
+          if (sessionRef.current !== session) { destination.delete(); break; }
+          const track: Track = { id, title: info.title, artist: info.artist, album: '', genre: '', durationSeconds: 0, sizeBytes: destination.size, mimeType: info.mimeType, source: 'LOCAL', coverUrl: null, ...metadata, importedAt: new Date().toISOString() };
+          const item: OfflineTrack = { track, uri: destination.uri, downloadedAt: new Date().toISOString(), metadataVersion };
+          const files = [...(await storage.downloads(session)).filter(value => value.track.id !== id), item];
           storage.saveDownloads(session, files); setDownloads(files);
           setLibrary(value => ({ ...value, tracks: [...value.tracks.filter(t => t.id !== id), track] })); added++; destination = null;
         } catch (error) { if (destination?.exists) destination.delete(); failures.push(error instanceof Error ? error.message : `Не удалось добавить ${asset.name}`); }
@@ -376,6 +423,7 @@ function useAuralisStore() {
   const logout = async (deleteAccount = false) => {
     if (downloading || importLock.current) throw new Error('Дождитесь завершения добавления музыки.');
     if (!deleteAccount) await recordCurrent();
+    const native = player as unknown as { setAuralisSleepTimer?: (seconds: number) => Promise<void> }; await native.setAuralisSleepTimer?.(0); setSleepDeadline(0); setSleepRemaining(0);
     player.pause(); player.setActiveForLockScreen(false); player.clear(); activeTrack.current = null; queueRef.current = [];
     if (session && deleteAccount && api) { await api.deleteAccount(); storage.deleteUser(session); }
     else { await sync(); if (api) { try { await api.logout(); } catch { /* Offline local logout remains available. */ } } }
@@ -393,7 +441,8 @@ function useAuralisStore() {
     for (let index = others.length-1; index > 0; index--) { const random = getRandomValues(new Uint32Array(1))[0]; const target = random % (index+1); [others[index], others[target]] = [others[target], others[index]]; }
     await play(current, [current, ...others], status.currentTime, 0, true);
   };
-  return { session, localMode, enterLocal: () => activate(localSession), importMusic, importing, removeLocalTrack, hydrated, library, downloads, theme, visuals, experience, shuffleEnabled, shuffleQueue, setVisualPreferences, setExperiencePreferences, accent: themes[theme].accent, tint: themes[theme].tint, busy, online, notice, setNotice, activate, refresh, current, queue, status, play, next, togglePlayback, seek, favorite, download, removeDownload, downloading, waveEntries, startWave, remotePlayback, resume, sync, setColorTheme, savePlaylist, createPlaylist, deletePlaylist, savePreferences, feedback, clearHistory, logout, run, setLoop, setRepeat, setRate, setVolume };
+  const currentArtwork = artworkSource(downloads.find(item => item.track.id === current?.id && item.track.coverUrl?.startsWith('file://'))?.track || current, session);
+  return { currentArtwork, setSleepTimer, sleepRemaining, session, localMode, enterLocal: () => activate(localSession), importMusic, importing, removeLocalTrack, hydrated, library, downloads, theme, visuals, experience, shuffleEnabled, shuffleQueue, setVisualPreferences, setExperiencePreferences, accent: themes[theme].accent, tint: themes[theme].tint, busy, online, notice, setNotice, activate, refresh, current, queue, status, play, next, togglePlayback, seek, favorite, download, removeDownload, downloading, waveEntries, startWave, remotePlayback, resume, sync, setColorTheme, savePlaylist, createPlaylist, deletePlaylist, savePreferences, feedback, clearHistory, logout, run, setLoop, setRepeat, setRate, setVolume };
 }
 
 type Store = ReturnType<typeof useAuralisStore>;

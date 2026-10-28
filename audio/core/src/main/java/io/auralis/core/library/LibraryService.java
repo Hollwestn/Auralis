@@ -117,12 +117,7 @@ public final class LibraryService implements AutoCloseable {
                     }
                 }
                 FfmpegService.AudioInfo info = audio.probe(real); audio.validate(real, info.durationSeconds());
-                String artwork = "";
-                if (info.embeddedArtwork()) artwork = audio.extractArtwork(real, dataDirectory.resolve("artwork").resolve(hash + ".png")).map(Path::toString).orElse("");
-                // Many music folders provide an external cover instead of an embedded picture.
-                if (artwork.isBlank()) for (String name : List.of("cover.jpg", "cover.png", "folder.jpg", "folder.png")) {
-                    Path cover = real.getParent().resolve(name); if (Files.isRegularFile(cover)) { artwork = cover.toString(); break; }
-                }
+                String artwork = resolveArtwork(real, hash);
                 String id = UUID.randomUUID().toString();
                 synchronized (this) {
                     // Recheck after decoding because a second import may run concurrently.
@@ -140,7 +135,62 @@ public final class LibraryService implements AutoCloseable {
         catch (SQLException e) { throw failure(e); }
         return List.copyOf(result);
     }
-    public ImportResult rescan() { return importPaths(importRoots()); }
+    public ImportResult rescan() { var result = importPaths(importRoots()); repairArtwork(); return result; }
+    /** Repairs old/moved caches without touching audio, track ids, favorites or tags. Worker only. */
+    public int repairArtwork() {
+        int repaired = 0;
+        for (Track track : tracks()) {
+            if (Thread.currentThread().isInterrupted()) break;
+            if (validArtwork(track.artworkPath()) || !Files.isRegularFile(track.path())) continue;
+            try {
+                String artwork = resolveArtwork(track.path(), track.id());
+                if (!artwork.isBlank()) { synchronized (this) { execute("UPDATE tracks SET artwork=? WHERE id=?", artwork, track.id()); } repaired++; }
+            } catch (IOException | RuntimeException ignored) { /* Missing art must never block playback. */ }
+        }
+        return repaired;
+    }
+    private String resolveArtwork(Path source, String key) throws IOException {
+        Path destination = dataDirectory.resolve("artwork").resolve(key + ".png");
+        if (validArtwork(destination.toString())) return destination.toString();
+        if (audio.probe(source).embeddedArtwork()) {
+            var embedded = audio.extractArtwork(source, destination);
+            if (embedded.isPresent() && validArtwork(embedded.get().toString())) return embedded.get().toString();
+        }
+        String stem = source.getFileName().toString().replaceFirst("\\.[^.]+$", "");
+        // Case-insensitive lookup also handles COVER.JPG and per-track sidecars.
+        List<String> candidates = List.of(stem + ".jpg", stem + ".jpeg", stem + ".png", "cover.jpg", "cover.jpeg", "cover.png", "folder.jpg", "folder.png", "front.jpg", "front.png");
+        try (Stream<Path> files = Files.list(source.getParent())) {
+            Map<String, Path> images = new HashMap<>(); files.filter(Files::isRegularFile).forEach(path -> images.putIfAbsent(path.getFileName().toString().toLowerCase(Locale.ROOT), path));
+            for (String name : candidates) {
+                Path image = images.get(name.toLowerCase(Locale.ROOT));
+                if (image != null && validArtwork(image.toString())) {
+                    Files.createDirectories(destination.getParent());
+                    var bitmap = javax.imageio.ImageIO.read(image.toFile());
+                    if (bitmap != null && javax.imageio.ImageIO.write(bitmap, "png", destination.toFile())) return destination.toString();
+                }
+            }
+        }
+        return "";
+    }
+    private static boolean validArtwork(String value) {
+        if (value == null || value.isBlank()) return false;
+        try {
+            Path path = Path.of(value); if (!Files.isRegularFile(path) || Files.size(path) > 16 * 1024 * 1024) return false;
+            try (var input = javax.imageio.ImageIO.createImageInputStream(path.toFile())) {
+                if (input == null) return false; var readers = javax.imageio.ImageIO.getImageReaders(input); if (!readers.hasNext()) return false;
+                var reader = readers.next(); try { reader.setInput(input); int width = reader.getWidth(0), height = reader.getHeight(0); return width > 0 && height > 0 && (long) width * height <= 40_000_000; } finally { reader.dispose(); }
+            }
+        } catch (IOException | RuntimeException ignored) { return false; }
+    }
+    public enum SmartCollection { RECENT, REDISCOVER, MOST_PLAYED }
+    public synchronized List<Track> smartCollection(SmartCollection collection) {
+        String cutoff = Instant.now().minus(java.time.Duration.ofDays(30)).toString();
+        return switch (collection) {
+            case RECENT -> queryTracks("SELECT * FROM tracks WHERE imported_at>=? ORDER BY imported_at DESC,title LIMIT 100", List.of(cutoff));
+            case REDISCOVER -> queryTracks("SELECT * FROM tracks WHERE id NOT IN (SELECT track_id FROM history WHERE played_at>=? AND listened_seconds>=10) ORDER BY imported_at,title LIMIT 100", List.of(cutoff));
+            case MOST_PLAYED -> queryTracks("SELECT t.* FROM tracks t JOIN history h ON h.track_id=t.id WHERE h.listened_seconds>=10 GROUP BY t.id ORDER BY SUM(h.listened_seconds) DESC, t.title LIMIT 100", List.of());
+        };
+    }
     public synchronized void forgetImportRoot(Path path) { execute("DELETE FROM import_roots WHERE path=?", path.toAbsolutePath().normalize().toString()); }
     public synchronized Playlist createPlaylist(String name) {
         String id = UUID.randomUUID().toString(); execute("INSERT INTO playlists(id,name,created_at) VALUES(?,?,?)", id, validName(name), Instant.now().toString());

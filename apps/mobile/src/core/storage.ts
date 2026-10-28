@@ -41,6 +41,7 @@ export const storage = {
     const extensions: Record<string, string> = { 'audio/mpeg': 'mp3', 'audio/flac': 'flac', 'audio/wav': 'wav', 'audio/x-wav': 'wav', 'audio/mp4': 'm4a', 'audio/aac': 'aac', 'audio/ogg': 'ogg', 'audio/aiff': 'aiff', 'audio/x-aiff': 'aiff', 'audio/x-flac': 'flac' };
     return file(session, trackFilename(id, extensions[mime] || 'audio'));
   },
+  coverTarget(session: Session, id: string) { return file(session, trackFilename(id, 'png')); },
   exists(uri: string) { return new File(uri).exists; },
   deleteFile(uri: string) { const target = new File(uri); if (target.exists) target.delete(); },
   deleteUser(session: Session) { const directory = userDirectory(session); if (directory.exists) directory.delete(); },

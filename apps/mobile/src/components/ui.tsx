@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { artworkSource } from '../core/artwork';
 import { AccessibilityInfo, ActivityIndicator, Alert, Animated, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, type TextInputProps, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -42,8 +43,11 @@ export function Notice() {
   return <Pressable onPress={() => setNotice('')} style={{ backgroundColor: '#2A2620', paddingHorizontal: 22, paddingVertical: 10 }}><Text style={{ color: '#E9CCA0', fontSize: 12, lineHeight: 18 }}>{notice || (session ? 'Офлайн · доступна скачанная музыка' : '')}</Text></Pressable>;
 }
 export function Cover({ track, size = 54 }: { track?: Track | null; size?: number }) {
-  const { accent, session } = useAuralis();
-  if (track?.coverUrl && session) return <Image source={{ uri: `${session.server}${track.coverUrl}`, headers: { Authorization: `Bearer ${session.token}` } }} style={{ width: size, height: size, borderRadius: size > 100 ? 20 : 10 }} accessibilityLabel={`Обложка: ${track.album}`} />;
+  const { accent, session, downloads } = useAuralis();
+  const saved = downloads.find(item => item.track.id === track?.id && item.track.coverUrl?.startsWith('file://'));
+  const source = artworkSource(saved?.track || track || null, session);
+  const [failedUri, setFailedUri] = useState('');
+  if (source && failedUri !== source.uri) return <Image source={source} onError={() => setFailedUri(source.uri)} style={{ width: size, height: size, borderRadius: size > 100 ? 20 : 10 }} accessibilityLabel={`Обложка: ${track?.album || track?.title}`} />;
   const seed = Array.from(track?.id || 'auralis').reduce((value, char) => value + char.charCodeAt(0), 0);
   const colors = ['#273833', '#34263C', '#383026', '#243340', '#3B282A'];
   const initial = (track?.artist || track?.title || 'A').slice(0, 1).toUpperCase();

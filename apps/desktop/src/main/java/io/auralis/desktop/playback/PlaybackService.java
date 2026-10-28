@@ -32,13 +32,14 @@ public final class PlaybackService implements AutoCloseable {
     private final double[] gains = new double[10];
     private boolean shuffle, eqEnabled = true;
     private Repeat repeat = Repeat.OFF;
+    private double sleepGain = 1;
     private Consumer<String> errorHandler = ignored -> { };
     private Consumer<Track> finishedHandler = ignored -> { };
     private AudioSpectrumListener spectrumListener;
 
     public PlaybackService(ExecutorService worker, Path cache) {
         this.worker = Objects.requireNonNull(worker); this.cache = Objects.requireNonNull(cache);
-        volume.addListener((o, a, b) -> { if (player != null) player.setVolume(Math.clamp(b.doubleValue(), 0, 1)); });
+        volume.addListener((o, a, b) -> { if (player != null) player.setVolume(Math.clamp(b.doubleValue(), 0, 1) * sleepGain); });
     }
     public ObjectProperty<Track> currentProperty() { return current; }
     public Track current() { return current.get(); }
@@ -58,6 +59,21 @@ public final class PlaybackService implements AutoCloseable {
         index = Math.clamp(start, 0, queue.size() - 1); play(queue.get(index), 0, true);
     }
     public void enqueue(Track track) { ensureOpen(); queue.add(Objects.requireNonNull(track)); }
+    /** Removes every occurrence; unrelated playback retains its native decoder and position. */
+    public void removeTrack(String trackId) {
+        ensureOpen(); Objects.requireNonNull(trackId);
+        if (queue.stream().noneMatch(track -> track.id().equals(trackId))) return;
+        boolean currentRemoved = current.get() != null && current.get().id().equals(trackId);
+        boolean autoplay = desiredPlaying && !ended;
+        int retainedBefore = 0;
+        for (int i = 0; i < index; i++) if (!queue.get(i).id().equals(trackId)) retainedBefore++;
+        queue.removeIf(track -> track.id().equals(trackId));
+        if (queue.isEmpty()) { setQueue(List.of(), 0); return; }
+        if (currentRemoved) {
+            index = Math.min(retainedBefore, queue.size() - 1);
+            play(queue.get(index), 0, autoplay);
+        } else if (index >= 0) index = retainedBefore;
+    }
     public void restore(Track track, double seconds) { restore(track, seconds, false); }
     public void restore(Track track, double seconds, boolean autoplay) {
         restoreQueue(List.of(Objects.requireNonNull(track)), 0, seconds, autoplay);
@@ -100,7 +116,7 @@ public final class PlaybackService implements AutoCloseable {
         if (request != generation || closed) return;
         try {
             Media media = new Media(path.toUri().toString()); MediaPlayer active = new MediaPlayer(media); player = active;
-            active.setVolume(Math.clamp(volume.get(), 0, 1)); active.setRate(rate); active.setBalance(balance);
+            active.setVolume(Math.clamp(volume.get(), 0, 1) * sleepGain); active.setRate(rate); active.setBalance(balance);
             applySpectrum();
             active.setOnReady(() -> {
                 if (active != player || request != generation || closed) return;
@@ -139,6 +155,7 @@ public final class PlaybackService implements AutoCloseable {
         if (desiredPlaying) player.play(); else player.pause();
     }
     public void pause() { desiredPlaying = false; if (player != null) player.pause(); }
+    public void setSleepGain(double value) { sleepGain = Math.clamp(value, 0, 1); if (player != null) player.setVolume(volume.get() * sleepGain); }
     public void seek(double seconds) {
         pendingStart = finitePosition(seconds, duration.get()); ended = false; position.set(pendingStart);
         if (player != null && ready.get()) player.seek(Duration.seconds(pendingStart));

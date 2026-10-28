@@ -1,5 +1,6 @@
 <div align="center">
 
+
 <img src="assets/brand/auralis-symbol/png/auralis-256.png" width="96" alt="Auralis" />
 
 # Auralis
@@ -10,9 +11,9 @@
 
 **Музыкальная платформа для Windows и Android с личной библиотекой, собственным сервером и графикой, которая слышит звук.**
 
-**Скачать:** [Windows EXE](https://github.com/inalinalinal2009-oss/Auralis/releases/download/v0.6.2-preview/Auralis-Setup.exe) · [Android APK — Preview](https://github.com/inalinalinal2009-oss/Auralis/releases/download/v0.6.2-preview/Auralis-Android-Test.apk) · [Сервер ZIP](https://github.com/inalinalinal2009-oss/Auralis/releases/download/v0.6.2-preview/Auralis-Server-Internet.zip)
+**Скачать:** [Windows EXE](https://github.com/Hollwestn/Auralis/releases/download/v0.6.2-preview/Auralis-Setup.exe) · [Android APK — Preview](https://github.com/Hollwestn/Auralis/releases/download/v0.6.2-preview/Auralis-Android-Test.apk) · [Сервер ZIP](https://github.com/Hollwestn/Auralis/releases/download/v0.6.2-preview/Auralis-Server-Internet.zip)
 
-[Что скачать](docs/GITHUB_DOWNLOADS.md) · [Начать слушать](START_HERE.md) · [Без аккаунта](docs/MOBILE_OFFLINE_GUIDE.md) · [Свой сервер](docs/SERVER_INTERNET_GUIDE.md) · [Сборки](https://github.com/inalinalinal2009-oss/Auralis/releases)
+[Что скачать](docs/GITHUB_DOWNLOADS.md) · [Начать слушать](START_HERE.md) · [Без аккаунта](docs/MOBILE_OFFLINE_GUIDE.md) · [Свой сервер](docs/SERVER_INTERNET_GUIDE.md) · [Сборки](https://github.com/Hollwestn/Auralis/releases)
 
 ![Java 25](https://img.shields.io/badge/Java-25-F8D34A?style=flat-square&labelColor=101116)
 ![Android](https://img.shields.io/badge/Android-7%2B-F8D34A?style=flat-square&labelColor=101116)
@@ -24,6 +25,10 @@
 <sub>Интерфейс Desktop. Black Hole рендерится процедурно на GPU.</sub>
 
 </div>
+
+> **Исходники 0.8.0:** подготовлены Linux x86_64, профили сборки Google Play / RuStore / App Store, политика конфиденциальности и поддержка. [Короткий гайд](docs/RELEASE_GUIDE.md) · [Проверки и ограничения](docs/verification/STORE_LINUX_080.md). Это подготовка к публикации; готовые файлы прежних выпусков ниже имеют собственные номера версий. Подписанный IPA и магазинный AAB ещё не выпущены.
+
+**Локальное обновление 0.7.0:** исправлены обложки, добавлены таймер сна и автоматические подборки. [Отчёт и установка](docs/UPDATE_070.md).
 
 ## Нажмите Play. Остальное почувствуете.
 
@@ -85,7 +90,7 @@ Auralis соединяет этот визуальный опыт с повсе�
 
 ## Начать с музыки
 
-**Windows.** Установите сборку из [Releases](https://github.com/inalinalinal2009-oss/Auralis/releases) либо соберите её из исходников. Выберите музыкальную папку и включите первый трек. Для локального прослушивания сервер не нужен. [Установка и обновление →](docs/WINDOWS_INSTALLATION.md)
+**Windows.** Установите сборку из [Releases](https://github.com/Hollwestn/Auralis/releases) либо соберите её из исходников. Выберите музыкальную папку и включите первый трек. Для локального прослушивания сервер не нужен. [Установка и обновление →](docs/WINDOWS_INSTALLATION.md)
 
 **Android.** Установите APK, нажмите **«Продолжить без аккаунта»**, затем **«Добавить музыку с телефона»**. Выбранные файлы копируются во внутреннее хранилище. [Пошаговая инструкция →](docs/MOBILE_OFFLINE_GUIDE.md)
 

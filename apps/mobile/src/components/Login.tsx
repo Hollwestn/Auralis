@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { LegalInfo } from './LegalInfo';
 import { ActivityIndicator, Image, KeyboardAvoidingView, Platform, ScrollView, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { AuralisApi, normalizeServer } from '../core/api';
@@ -40,5 +41,6 @@ export function Login() {
       <Button secondary label={kind === 'login' ? 'Создать аккаунт на сервере' : 'Уже есть аккаунт? Войти'} onPress={() => { setKind(kind === 'login' ? 'register' : 'login'); setError(''); }} />
       <Text style={[ui.muted, { fontSize: 11, textAlign: 'center' }]}>Вход нужен только для серверной коллекции и синхронизации между устройствами. Общего сервера Auralis нет: здесь указывается адрес вашего сервера.</Text>
     </View>
+    <LegalInfo />
   </ScrollView></KeyboardAvoidingView></Screen>;
 }

@@ -1,4 +1,4 @@
-param([switch]$MigrateOnly)
+﻿param([switch]$MigrateOnly)
 $ErrorActionPreference='Stop'
 $releaseRoot=$PSScriptRoot
 if(-not(Test-Path -LiteralPath (Join-Path $releaseRoot 'Auralis/Auralis.exe'))){$releaseRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '../release/desktop'))}

@@ -1,0 +1,37 @@
+name: Linux packages
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/linux.yml'
+      - 'scripts/build-linux.sh'
+      - 'apps/desktop/**'
+      - 'audio/core/**'
+      - 'shared/**'
+      - 'pom.xml' 
+permissions:
+  contents: read
+jobs:
+  linux-x64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Install native desktop dependencies
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg fakeroot xvfb libgtk-3-0t64 libasound2t64 libgl1-mesa-dri libglx-mesa0 libxrandr2 libxinerama1 libxcursor1 libxi6 libxtst6 libxxf86vm1
+      - name: Null audio device for native player tests
+        run: printf 'pcm.!default { type null }\nctl.!default { type hw card 0 }\n' > ~/.asoundrc
+      - name: Build and test Debian package
+        run: xvfb-run -a bash scripts/build-linux.sh deb
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Auralis-linux-x86_64
+          path: release/linux/*
+          retention-days: 7

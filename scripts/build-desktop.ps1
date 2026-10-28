@@ -1,4 +1,4 @@
-param([ValidateSet('app-image','exe','msi')][string]$Type='exe',[switch]$SkipTests)
+﻿param([ValidateSet('app-image','exe','msi')][string]$Type='exe',[switch]$SkipTests)
 $ErrorActionPreference='Stop'
 $projectRoot=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 Set-Location -LiteralPath $projectRoot
@@ -62,12 +62,12 @@ if($Type -ne 'app-image'){
  $packageDestination=Join-Path $projectRoot ('.runtime/desktop-package-'+[Guid]::NewGuid().ToString())
  New-Item -ItemType Directory -Path $packageDestination | Out-Null
 }
-$packageArgs=@('--verbose','--type',$Type,'--name','Auralis','--app-version','0.6.1','--vendor','Auralis','--description','Your music. Your space.','--input',$inputDir,'--main-jar','auralis-desktop-0.1.0-SNAPSHOT.jar','--main-class','io.auralis.desktop.Launcher','--dest',$packageDestination,'--java-options','--enable-native-access=ALL-UNNAMED','--java-options','-Dauralis.home=$APPDIR','--java-options','-Dfile.encoding=UTF-8','--add-modules','java.base,java.desktop,java.logging,java.management,java.naming,java.net.http,java.prefs,java.scripting,java.sql,java.xml,jdk.charsets,jdk.crypto.ec,jdk.unsupported,jdk.zipfs')
+$packageArgs=@('--verbose','--type',$Type,'--name','Auralis','--app-version','0.7.1','--vendor','Auralis','--description','Your music. Your space.','--input',$inputDir,'--main-jar','auralis-desktop-0.1.0-SNAPSHOT.jar','--main-class','io.auralis.desktop.Launcher','--dest',$packageDestination,'--java-options','--enable-native-access=ALL-UNNAMED','--java-options','-Dauralis.home=$APPDIR','--java-options','-Dfile.encoding=UTF-8','--add-modules','java.base,java.desktop,java.logging,java.management,java.naming,java.net.http,java.prefs,java.scripting,java.sql,java.xml,jdk.charsets,jdk.crypto.ec,jdk.unsupported,jdk.zipfs')
 $packageArgs+=@('--icon',(Join-Path $projectRoot 'assets/auralis.ico'))
 if($Type -ne 'app-image'){$packageArgs+=@('--resource-dir',$resourceRoot,'--win-per-user-install','--install-dir','AuralisApp','--win-dir-chooser','--win-menu','--win-shortcut','--win-menu-group','Auralis','--win-upgrade-uuid','68fdc42f-8b2b-4d39-a50f-2db35c01bf25')}
 & jpackage @packageArgs
 if($LASTEXITCODE -ne 0){throw 'jpackage завершился ошибкой. Для EXE/MSI установите WiX Toolset 3.11+ и добавьте bin в PATH.'}
-if($Type -ne 'app-image'){Copy-Item -LiteralPath (Join-Path $packageDestination "Auralis-0.6.1.$Type") -Destination (Join-Path $destination "Auralis-0.6.1.$Type") -Force}
-if($Type -eq 'exe'){Copy-Item -LiteralPath (Join-Path $destination 'Auralis-0.6.1.exe') -Destination (Join-Path $destination 'Auralis-Setup.exe') -Force}
+if($Type -ne 'app-image'){Copy-Item -LiteralPath (Join-Path $packageDestination "Auralis-0.7.1.$Type") -Destination (Join-Path $destination "Auralis-0.7.1.$Type") -Force}
+if($Type -eq 'exe'){Copy-Item -LiteralPath (Join-Path $destination 'Auralis-0.7.1.exe') -Destination (Join-Path $destination 'Auralis-Setup.exe') -Force}
 Copy-Item -LiteralPath (Join-Path $projectRoot "scripts/safe-update-desktop.ps1") -Destination (Join-Path $destination "Safe-Update.ps1") -Force
 Write-Host "Готово: $destination"

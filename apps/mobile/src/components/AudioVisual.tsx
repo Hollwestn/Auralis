@@ -31,6 +31,7 @@ function ShaderVisual({ mode = 'Black Hole', accent = '#F8D34A', intensity = 1, 
     let cancelled = false;
     localCover.current = null; uploadCover.current?.(null);
     if (!coverUrl) return;
+    if (coverUrl.startsWith('file://')) { localCover.current = coverUrl; uploadCover.current?.(coverUrl); start(); return; }
     const target = new File(Paths.cache, `auralis-cover-${Date.now()}-${Math.floor(performance.now())}.image`);
     void File.downloadFileAsync(coverUrl, target, { headers: coverToken ? { Authorization: `Bearer ${coverToken}` } : {}, idempotent: true }).then(file => { if (!cancelled) { localCover.current = file.uri; uploadCover.current?.(file.uri); start(); } else if (file.exists) file.delete(); }).catch(() => { /* Missing original artwork is an explicit neutral fallback. */ });
     return () => { cancelled = true; if (target.exists) target.delete(); };

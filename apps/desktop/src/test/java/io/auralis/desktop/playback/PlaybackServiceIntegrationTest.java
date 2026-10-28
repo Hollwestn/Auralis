@@ -119,6 +119,26 @@ class PlaybackServiceIntegrationTest {
         assertThrows(ExecutionException.class, () -> fx(() -> { service.restoreQueue(List.of(first), 1, 0, true); return null; }));
         assertThrows(ExecutionException.class, () -> fx(() -> { service.restoreQueue(List.of(), 0, 0, true); return null; }));
     }
+    @Test void removingOtherTracksKeepsNativePlaybackPositionAndAdjustsQueueIndex() throws Exception {
+        Track first=fixture("remove-other", ".wav"), second=new Track("second", "Second", "A", "", "", first.path(), 12, ""), third=new Track("third", "Third", "A", "", "", first.path(), 12, "");
+        fx(()->{service.restoreQueue(List.of(first,second,first,third),3,4,false);return null;});
+        await(()->service.readyProperty().get()&&service.positionProperty().get()>=3.8);
+        fx(()->{service.removeTrack(first.id());return null;});
+        assertEquals(List.of(second,third),fx(service::queue));assertEquals(1,fx(service::queueIndex));assertEquals(third,fx(service::current));
+        assertTrue(fx(()->service.readyProperty().get()));assertTrue(fx(()->service.positionProperty().get())>=3.8);assertFalse(fx(()->service.playingProperty().get()));
+        fx(()->{service.removeTrack(second.id());service.removeTrack("not-in-queue");return null;});
+        assertEquals(0,fx(service::queueIndex));assertEquals(third,fx(service::current));assertTrue(fx(()->service.positionProperty().get())>=3.8);assertNull(mediaError.get());
+    }
+    @Test void removingCurrentTrackPreservesPlayingOrPausedIntentAndClearsLastTrack() throws Exception {
+        Track first=fixture("remove-current", ".wav"), second=new Track("second", "Second", "A", "", "", first.path(),12,""),third=new Track("third","Third","A","","",first.path(),12,"");
+        fx(()->{service.setRepeat(PlaybackService.Repeat.ALL);service.setQueue(List.of(first,second,first,third),0);return null;});await(()->service.readyProperty().get()&&service.playingProperty().get());
+        fx(()->{service.removeTrack(first.id());return null;});await(()->service.readyProperty().get()&&service.playingProperty().get());
+        assertEquals(List.of(second,third),fx(service::queue));assertEquals(second,fx(service::current));assertEquals(0,fx(service::queueIndex));
+        fx(()->{service.pause();service.removeTrack(second.id());return null;});await(()->service.readyProperty().get());
+        assertEquals(third,fx(service::current));assertFalse(fx(()->service.playingProperty().get()));
+        fx(()->{service.removeTrack(third.id());return null;});
+        assertTrue(fx(service::queue).isEmpty());assertNull(fx(service::current));assertEquals(-1,fx(service::queueIndex));assertEquals(0,fx(()->service.positionProperty().get()));assertEquals(0,fx(()->service.durationProperty().get()));assertEquals(MediaPlayer.Status.DISPOSED,fx(service::nativeStatus));assertNull(mediaError.get());
+    }
     private void await(Callable<Boolean> condition) throws Exception {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(15);
         while (System.nanoTime() < deadline) {

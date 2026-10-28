@@ -47,6 +47,16 @@ class CoreIntegrationTest {
             reopened.removeTrack(id); assertEquals(1, reopened.tracks().size()); assertTrue(Files.isRegularFile(first));
         }
     }
+    @Test void removeTrackCascadesCatalogReferencesAndNeverDeletesOriginal() throws Exception {
+        Path file=fixture("Keep original",440,"Artist","Ambient");byte[] original=Files.readAllBytes(file);String playlistId;
+        try(var library=new LibraryService(directory.resolve("remove-data"))){
+            library.importPaths(List.of(file));String id=library.tracks().getFirst().id();var playlist=library.createPlaylist("Survives");playlistId=playlist.id();
+            library.addToPlaylist(playlistId,id);library.setFavorite(id,true);library.setReaction(id,LibraryService.Reaction.MORE);library.recordListen(id,3,false);
+            library.removeTrack(id);
+            assertTrue(library.track(id).isEmpty());assertTrue(library.favorites().isEmpty());assertTrue(library.history(10).isEmpty());assertTrue(library.feedback().isEmpty());assertTrue(library.playlist(playlistId).orElseThrow().tracks().isEmpty());assertArrayEquals(original,Files.readAllBytes(file));
+        }
+        try(var library=new LibraryService(directory.resolve("remove-data"))){assertTrue(library.tracks().isEmpty());assertTrue(library.playlist(playlistId).isPresent());assertArrayEquals(original,Files.readAllBytes(file));}
+    }
     @Test void playlistOrderSurvivesRestartAndM3uRoundTrip() throws Exception {
         Path first = fixture("First", 440, "One", "Rock"), second = fixture("Second", 880, "Two", "Jazz");
         String playlistId;

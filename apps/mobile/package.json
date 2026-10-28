@@ -1,6 +1,6 @@
 {
   "name": "auralis-mobile",
-  "version": "0.6.2",
+  "version": "0.8.0",
   "main": "expo-router/entry",
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",

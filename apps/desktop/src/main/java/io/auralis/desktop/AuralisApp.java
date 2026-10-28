@@ -16,8 +16,8 @@ public final class AuralisApp extends Application {
     private LibraryService library;
     private final ExecutorService worker=Executors.newVirtualThreadPerTaskExecutor();
     private static volatile boolean smokeFailed;
-    public static Path dataDirectory(){String override=System.getProperty("auralis.data");if(override!=null)return Path.of(override);String local=System.getenv("LOCALAPPDATA");return Path.of(local==null?System.getProperty("user.home"):local,"AuralisData");}
-    public static Path legacyDataDirectory(){String override=System.getProperty("auralis.legacyData");if(override!=null)return Path.of(override);String local=System.getenv("LOCALAPPDATA");return Path.of(local==null?System.getProperty("user.home"):local,"Auralis");}
+    public static Path dataDirectory(){String override=System.getProperty("auralis.data");if(override!=null)return Path.of(override);return DesktopPaths.data(System.getProperty("os.name"),Path.of(System.getProperty("user.home")),System.getenv());}
+    public static Path legacyDataDirectory(){String override=System.getProperty("auralis.legacyData");if(override!=null)return Path.of(override);return DesktopPaths.legacy(System.getProperty("os.name"),Path.of(System.getProperty("user.home")),System.getenv());}
     public static Path prepareDataDirectory()throws java.io.IOException{Path target=dataDirectory();if(System.getProperty("auralis.data")==null||System.getProperty("auralis.legacyData")!=null)DesktopDataMigration.migrateIfNeeded(legacyDataDirectory(),target);return target;}
     @Override public void init() throws Exception {library=new LibraryService(prepareDataDirectory());if(getParameters().getRaw().contains("--smoke-test")&&System.getProperty("auralis.fixture")!=null)library.importPaths(java.util.List.of(Path.of(System.getProperty("auralis.fixture"))));}
     @Override public void start(Stage stage)throws Exception{
