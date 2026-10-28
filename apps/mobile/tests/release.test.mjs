@@ -1,10 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { releaseSettings } from '../config/release.cjs';
 import { patchReleaseSigning } from '../plugins/release-signing.cjs';
 
 const valid = { AURALIS_STORE_RELEASE: '1', AURALIS_PRIVACY_URL: 'https://hollwestn.github.io/Auralis/privacy.html', AURALIS_DELETION_URL: 'https://hollwestn.github.io/Auralis/delete-account.html' };
+test('Expo can populate empty Android resources after a fresh dependency install', async () => {
+  const { AndroidConfig } = createRequire(import.meta.url)('expo/config-plugins');
+  const xml = await AndroidConfig.Resources.readResourcesXMLAsync({ path: join(tmpdir(), `auralis-missing-${randomUUID()}.xml`), fallback: '<resources/>' });
+  xml.resources.color = [{ $: { name: 'colorPrimary' }, _: '#F8D34A' }];
+  assert.equal(xml.resources.color[0]._, '#F8D34A');
+});
 test('offline builds need no hosted page, store builds require public legal pages', () => {
   assert.equal(releaseSettings({}).email, 'auralishelp@mail.ru');
   assert.equal(releaseSettings(valid).store, true);
