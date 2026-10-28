@@ -37,6 +37,8 @@ jobs:
           LIBGL_ALWAYS_SOFTWARE: '1'
       - name: Install and launch packaged application
         run: |
+          # Headless runners lack this standard desktop menu directory.
+          sudo install -d -m 0755 /usr/share/desktop-directories
           sudo apt-get install -y ./release/linux/*.deb
           xvfb-run -a bash scripts/smoke-linux.sh
         env:

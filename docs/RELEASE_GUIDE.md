@@ -13,7 +13,7 @@
    git clone https://github.com/Hollwestn/Auralis.git
    cd Auralis
    bash scripts/build-linux.sh deb
-   sudo apt install ./release/linux/auralis_0.8.0-1_amd64.deb
+   sudo apt install ./release/linux/auralis_0.8.0_amd64.deb
    ```
 
 2. Запустите **Auralis** из меню приложений. Имя DEB проверьте через `ls release/linux/*.deb`, если ваша версия jpackage формирует другое имя. Java включена в пакет; FFmpeg устанавливается как системная зависимость. GPU-графике нужен OpenGL 3.3 и рабочий драйвер. Если драйвер не поддерживает её, отключите графику звука в настройках.
