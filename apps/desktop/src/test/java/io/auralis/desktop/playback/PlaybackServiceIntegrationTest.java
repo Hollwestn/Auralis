@@ -145,7 +145,10 @@ class PlaybackServiceIntegrationTest {
             if (mediaError.get() != null) fail("Native media error: " + mediaError.get());
             if (fx(condition)) return; Thread.sleep(40);
         }
-        fail("Native media state did not become ready before timeout; error=" + mediaError.get());
+        fail("Native media state did not become ready before timeout; error=" + mediaError.get()
+            + fx(() -> "; track=" + (service.current() == null ? "null" : service.current().id())
+                + "; status=" + service.nativeStatus() + "; ready=" + service.readyProperty().get()
+                + "; playing=" + service.playingProperty().get() + "; position=" + service.positionProperty().get()));
     }
     private static <T> T fx(Callable<T> operation) throws Exception {
         CompletableFuture<T> result = new CompletableFuture<>();

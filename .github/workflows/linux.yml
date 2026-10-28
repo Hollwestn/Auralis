@@ -23,9 +23,13 @@ jobs:
           java-version: '25'
           cache: maven
       - name: Install native desktop dependencies
-        run: sudo apt-get update && sudo apt-get install -y ffmpeg fakeroot xvfb libgtk-3-0t64 libasound2t64 libgl1-mesa-dri libglx-mesa0 libxrandr2 libxinerama1 libxcursor1 libxi6 libxtst6 libxxf86vm1
-      - name: Null audio device for native player tests
-        run: printf 'pcm.!default { type null }\nctl.!default { type hw card 0 }\n' > ~/.asoundrc
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg fakeroot xvfb pulseaudio libasound2-plugins libgtk-3-0t64 libasound2t64 libgl1-mesa-dri libglx-mesa0 libxrandr2 libxinerama1 libxcursor1 libxi6 libxtst6 libxxf86vm1
+      - name: Clocked virtual audio output for native player tests
+        run: |
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=auralis_ci
+          pactl set-default-sink auralis_ci
+          printf 'pcm.!default { type pulse }\nctl.!default { type pulse }\n' > ~/.asoundrc
       - name: Build and test Debian package
         run: xvfb-run -a bash scripts/build-linux.sh deb
         env:
@@ -35,3 +39,10 @@ jobs:
           name: Auralis-linux-x86_64
           path: release/linux/*
           retention-days: 7
+      - name: Preserve test diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-test-diagnostics
+          path: '**/target/surefire-reports/'
+          retention-days: 3
