@@ -135,6 +135,10 @@ public final class MainController implements AutoCloseable {
         final Catalog[] result={null};
         task("Обновление медиатеки…",()->result[0]=new Catalog(library.tracks(),library.playlists(),library.favorites().stream().map(Track::id).collect(java.util.stream.Collectors.toSet()),library.history(150).stream().map(LibraryService.HistoryEntry::track).distinct().limit(6).toList(),new RecommendationService(library).recommend(RecommendationService.WaveMode.MY_WAVE,8)),()->{
             tracks=result[0].tracks;playlists=result[0].playlists;favorites=result[0].favorites;recentlyPlayed=result[0].recent;homeRecommendations=result[0].recommendations;
+            if(playback.current()!=null&&!Files.isRegularFile(playback.current().path())){
+                Map<String,Track> catalog=new HashMap<>();tracks.forEach(t->catalog.put(t.id(),t));List<Track> relinked=playback.queue().stream().map(t->catalog.getOrDefault(t.id(),t)).toList();int selected=playback.queueIndex();
+                if(selected>=0&&selected<relinked.size()&&Files.isRegularFile(relinked.get(selected).path()))playback.restoreQueue(relinked,selected,playback.positionProperty().get(),false);
+            }
             if(playback.current()!=null)tracks.stream().filter(track->track.id().equals(playback.current().id())).findFirst().ifPresent(this::updateCurrent);
             if(pending==0)statusLabel.setText(tracks.size()+" треков · ваша музыка всегда рядом");
             playlistNav.getChildren().clear();for(Playlist playlist:playlists){Button b=button(playlist.name(),"nav-button",()->openPlaylist(playlist.id()));b.setGraphic(Icons.of("music",16));b.setMaxWidth(Double.MAX_VALUE);playlistNav.getChildren().add(b);}updateLike();updateDockQueue();if(done!=null)done.run();

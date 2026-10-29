@@ -86,6 +86,11 @@ class PlaybackServiceIntegrationTest {
         fx(()->{service.seek(4);service.toggle();return null;});await(()->service.readyProperty().get()&&service.playingProperty().get()&&service.positionProperty().get()>=3.9);
         fx(()->{service.next();return null;});await(()->!service.playingProperty().get());assertNull(mediaError.get());
     }
+    @Test void missingAudioInRestoredBackupKeepsQueueAndPositionWithoutStartupError()throws Exception{
+        Track missing=new Track("missing","Awaiting original","A","Album","",directory.resolve("absent.missing"),30,"");
+        fx(()->{service.restoreQueue(List.of(missing,missing),1,12,false);return null;});
+        assertEquals(List.of(missing,missing),fx(service::queue));assertEquals(1,fx(service::queueIndex));assertEquals(12,fx(()->service.positionProperty().get()),.001);assertFalse(fx(()->service.readyProperty().get()));assertNull(mediaError.get());
+    }
     @Test void queueWrapShuffleAndDisposalHaveStableBoundaries() throws Exception {
         Track first = fixture("queue", ".wav");
         Track second = new Track("second", "Second", "A", "", "", first.path(), 12, ""), third = new Track("third", "Third", "A", "", "", first.path(), 12, "");

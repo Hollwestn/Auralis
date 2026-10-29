@@ -110,6 +110,7 @@ public final class PlaybackService implements AutoCloseable {
     private void play(Track track, double start, boolean autoplay) {
         int request = ++generation; dispose(); desiredPlaying = autoplay; loading = true; ended = false; convertingGeneration = -1;
         pendingStart = finitePosition(start, track.durationSeconds()); current.set(track); duration.set(track.durationSeconds()); position.set(pendingStart);
+        if(!autoplay&&!Files.isRegularFile(track.path())){loading=false;return;}
         if(continuousEnabled){openContinuous(request,autoplay);return;}
         String name = track.path().getFileName().toString().toLowerCase(Locale.ROOT);
         if (name.endsWith(".mp3") || name.endsWith(".m4a") || name.endsWith(".wav") || name.endsWith(".aif") || name.endsWith(".aiff")) open(track.path(), track, request, true);
