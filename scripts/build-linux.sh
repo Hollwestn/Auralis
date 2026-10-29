@@ -41,3 +41,4 @@ else
 fi
 (cd "$root/release/linux" && find . -maxdepth 1 -type f ! -name SHA256SUMS.txt -print0 | sort -z | xargs -0 -r sha256sum > SHA256SUMS.txt)
 echo "Ready: $root/release/linux (system FFmpeg and desktop libraries are required)."
+
