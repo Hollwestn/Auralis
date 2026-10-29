@@ -11,6 +11,8 @@ jobs:
   simulator:
     runs-on: macos-15
     timeout-minutes: 50
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.2.app/Contents/Developer
     defaults:
       run:
         working-directory: apps/mobile
@@ -35,10 +37,11 @@ jobs:
       - name: Compile app and widget without Apple credentials
         run: |
           set -o pipefail
-          xcodebuild -workspace ios/Auralis.xcworkspace -scheme Auralis -sdk iphonesimulator -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/build CODE_SIGNING_ALLOWED=NO build 2>&1 | tee ios-build.log
+          xcodebuild -workspace ios/Auralis.xcworkspace -scheme Auralis -sdk iphonesimulator -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/build CODE_SIGNING_ALLOWED=NO ARCHS=arm64 ONLY_ACTIVE_ARCH=YES build 2>&1 | tee ios-build.log
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: ios-build-diagnostics
           path: apps/mobile/ios-build.log
           retention-days: 3
+

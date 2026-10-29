@@ -48,10 +48,11 @@ public final class PlaybackService implements AutoCloseable {
     private final Deque<Runnable> queueUndo = new ArrayDeque<>();
     public void onQueueChanged(Runnable callback){queueChanged=Objects.requireNonNull(callback);}
     public void insertNext(Track track){insertQueue(track,Math.max(0,index+1));}
-    public void insertQueue(Track track,int at){ensureOpen();if(at<0||at>queue.size())throw new IllegalArgumentException("Invalid queue index");boolean empty=queue.isEmpty();queue.add(at,Objects.requireNonNull(track));if(empty){index=0;play(track,0,false);}else if(index>=at)index++;updateContinuous();queueChanged.run();}
+    public void insertQueue(Track track,int at){insertQueue(track,at,true);}
+    private void insertQueue(Track track,int at,boolean resetUndo){ensureOpen();if(resetUndo)queueUndo.clear();if(at<0||at>queue.size())throw new IllegalArgumentException("Invalid queue index");boolean empty=queue.isEmpty();queue.add(at,Objects.requireNonNull(track));if(empty){index=0;play(track,0,false);}else if(index>=at)index++;updateContinuous();queueChanged.run();}
     public void moveQueueItem(int from,int to){moveQueueItem(from,to,true);}
     private void moveQueueItem(int from,int to,boolean undo){ensureOpen();if(from<0||to<0||from>=queue.size()||to>=queue.size())throw new IllegalArgumentException("Invalid queue index");Track track=queue.remove(from);queue.add(to,track);index=index==from?to:from<index&&to>=index?index-1:from>index&&to<=index?index+1:index;if(undo){queueUndo.push(()->moveQueueItem(to,from,false));trimQueueUndo();}updateContinuous();queueChanged.run();}
-    public void removeQueueItem(int at){ensureOpen();if(at<0||at>=queue.size())throw new IllegalArgumentException("Invalid queue index");Track removed=queue.get(at);boolean active=at==index,autoplay=desiredPlaying&&!ended;queue.remove(at);queueUndo.push(()->insertQueue(removed,Math.min(at,queue.size())));trimQueueUndo();if(queue.isEmpty()){++generation;dispose();index=-1;current.set(null);position.set(0);duration.set(0);desiredPlaying=false;}else if(active){index=Math.min(at,queue.size()-1);play(queue.get(index),0,autoplay);}else if(at<index)index--;updateContinuous();queueChanged.run();}
+    public void removeQueueItem(int at){ensureOpen();if(at<0||at>=queue.size())throw new IllegalArgumentException("Invalid queue index");Track removed=queue.get(at);boolean active=at==index,autoplay=desiredPlaying&&!ended;queue.remove(at);queueUndo.push(()->insertQueue(removed,Math.min(at,queue.size()),false));trimQueueUndo();if(queue.isEmpty()){++generation;dispose();index=-1;current.set(null);position.set(0);duration.set(0);desiredPlaying=false;}else if(active){index=Math.min(at,queue.size()-1);play(queue.get(index),0,autoplay);}else if(at<index)index--;updateContinuous();queueChanged.run();}
     private void trimQueueUndo(){while(queueUndo.size()>20)queueUndo.removeLast();}
     public boolean canUndoQueue(){return !queueUndo.isEmpty();}
     public void undoQueue(){ensureOpen();if(!queueUndo.isEmpty())queueUndo.pop().run();}
@@ -78,7 +79,7 @@ public final class PlaybackService implements AutoCloseable {
         if (queue.isEmpty()) { ++generation; dispose(); index = -1; current.set(null); position.set(0); duration.set(0); desiredPlaying = false; queueChanged.run(); return; }
         index = Math.clamp(start, 0, queue.size() - 1); play(queue.get(index), 0, true); queueChanged.run();
     }
-    public void enqueue(Track track) { ensureOpen(); queue.add(Objects.requireNonNull(track)); updateContinuous(); queueChanged.run(); }
+    public void enqueue(Track track) { ensureOpen(); queueUndo.clear();queue.add(Objects.requireNonNull(track)); updateContinuous(); queueChanged.run(); }
     /** Removes every occurrence; unrelated playback retains its native decoder and position. */
     public void removeTrack(String trackId) {
         ensureOpen(); Objects.requireNonNull(trackId);
@@ -244,3 +245,4 @@ public final class PlaybackService implements AutoCloseable {
     private void ensureOpen() { if (closed) throw new IllegalStateException("Playback service is closed"); }
     @Override public void close() { if (closed) return; closed = true; ++generation; desiredPlaying = false; dispose(); queue.clear(); index = -1; }
 }
+

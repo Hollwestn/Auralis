@@ -119,6 +119,11 @@ function useAuralisStore() {
     } finally { historySending.current = false; }
   }, [api, session]);
 
+  const applyStoredAudio=useCallback((state:Record<string,unknown>)=>{
+    const volume=Number(state.volume),rate=Number(state['audio.rate']);
+    if(state.volume!==undefined&&Number.isFinite(volume))setNativeVolume(player,Math.max(0,Math.min(1,volume)));
+    if(state['audio.rate']!==undefined&&Number.isFinite(rate))setNativeRate(player,Math.max(.25,Math.min(4,rate)));
+  },[player]);
   const activate = useCallback(async (value: Session) => {
     await storage.recoverRestore(value);
     const [cached, offline, history, state] = await Promise.all([storage.library(value), storage.downloads(value), storage.pendingHistory(value), storage.localState(value)]);
@@ -130,10 +135,10 @@ function useAuralisStore() {
     setTheme(normalizeTheme(state.theme) || 'ObsidianYellow');
     setVisuals(normalizeVisualPreferences(state.visuals));
     setExperience({ ...defaultExperience, ...state.experience as Experience });
-    setAudioPreferences(normalizeAudioPreferences(state.audioPreferences));
+    setAudioPreferences(normalizeAudioPreferences(state.audioPreferences));applyStoredAudio(state);
     setRemotePlayback(state.playback as Playback || null);
     await storage.saveSession(value); sessionRef.current = value; setSession(value);
-  }, [setLibrary]);
+  }, [setLibrary,applyStoredAudio]);
   useEffect(() => { void setAudioModeAsync({ shouldPlayInBackground: experience.backgroundAudioEnabled }).catch(report); }, [experience.backgroundAudioEnabled, report]);
 
   useEffect(() => {
@@ -525,6 +530,7 @@ function useAuralisStore() {
   };
   const queueTrack = async (track: Track, next = false) => {
     if (!queueRef.current.length) { await play(track,[track],0,0,false,false); return; }
+    queueUndo.current=[];setCanUndoQueue(false);
     const index = next ? activeQueueIndex.current+1 : queueRef.current.length;
     const state = insertQueue({ items: queueRef.current, index: activeQueueIndex.current }, track, index);
     player.insert(sourceFor(track),index); persistQueue(state.items,state.index);
@@ -564,7 +570,7 @@ function useAuralisStore() {
       await recordCurrent();
       const assets=await extractBackup(backupPreview,storage.restoredDirectory(session));
       const restored=mergeBackup(libraryRef.current,await storage.downloads(session),localState.current,backupPreview.manifest,assets,replace,randomUUID);
-      storage.commitRestore(session,restored.library,restored.downloads,restored.state);player.pause();player.clear();activeTrack.current=null;queueRef.current=[];setCurrent(null);setQueue([]);queueUndo.current=[];setCanUndoQueue(false);localState.current=restored.state;setLibrary(restored.library);setDownloads(restored.downloads);setTheme(normalizeTheme(restored.state.theme)||theme);setVisuals(normalizeVisualPreferences(restored.state.visuals));setExperience({...defaultExperience,...restored.state.experience as Experience});setAudioPreferences(normalizeAudioPreferences(restored.state.audioPreferences));restoredSession.current='';setRemotePlayback(restored.state.playback as Playback);setBackupPreview(null);setNotice(`Восстановлено: ${restored.library.tracks.length} треков. Отсутствующие аудиофайлы можно добавить позже.`);
+      storage.commitRestore(session,restored.library,restored.downloads,restored.state);player.pause();player.clear();activeTrack.current=null;queueRef.current=[];setCurrent(null);setQueue([]);queueUndo.current=[];setCanUndoQueue(false);localState.current=restored.state;setLibrary(restored.library);setDownloads(restored.downloads);setTheme(normalizeTheme(restored.state.theme)||theme);setVisuals(normalizeVisualPreferences(restored.state.visuals));setExperience({...defaultExperience,...restored.state.experience as Experience});setAudioPreferences(normalizeAudioPreferences(restored.state.audioPreferences));applyStoredAudio(restored.state);restoredSession.current='';setRemotePlayback(restored.state.playback as Playback);setBackupPreview(null);setNotice(`Восстановлено: ${restored.library.tracks.length} треков. Отсутствующие аудиофайлы можно добавить позже.`);
     } finally {importLock.current=false;setLibraryWorking(false);}
   };
   const previewTransferredBackup=async(file:File)=>{setBackupPreview(await inspectBackup(file,libraryRef.current));};
@@ -577,3 +583,4 @@ type Store = ReturnType<typeof useAuralisStore>;
 const Context = createContext<Store | null>(null);
 export function AuralisProvider({ children }: { children: React.ReactNode }) { return <Context.Provider value={useAuralisStore()}>{children}</Context.Provider>; }
 export function useAuralis() { const value = useContext(Context); if (!value) throw new Error('Missing AuralisProvider'); return value; }
+
