@@ -58,6 +58,15 @@ public final class DesktopUiFlowHarness extends Application {
                 checks.add("Empty queue sync index -1 and settings-only restore");
             }catch(ReflectiveOperationException error){throw new IllegalStateException(error);}
         });
+        steps.add(()->{try{
+            var manifest=library.backupSnapshot();Map<String,String> ids=new HashMap<>();int at=0;
+            for(var entry:manifest.path("tracks")){String old=entry.path("id").asText(),replacement="mobile-slot-"+(at++);ids.put(old,replacement);((com.fasterxml.jackson.databind.node.ObjectNode)entry).put("id",replacement);}
+            for(var entry:manifest.path("playlists")){var original=entry.path("trackIds").deepCopy();var mapped=((com.fasterxml.jackson.databind.node.ObjectNode)entry).putArray("trackIds");original.forEach(id->mapped.add(ids.get(id.asText())));}
+            var preview=new io.auralis.core.backup.LibraryArchive.Preview(library.dataDirectory().resolve("fixture.auralis"),manifest,3,1,1,0,0,0,3);
+            var method=MainController.class.getDeclaredMethod("backupDifferences",io.auralis.core.backup.LibraryArchive.Preview.class);method.setAccessible(true);
+            require(((List<?>)method.invoke(controller,preview)).isEmpty(),"Content-equivalent mobile identifiers must not create playlist conflicts");
+            ((com.fasterxml.jackson.databind.node.ObjectNode)manifest.path("tracks").get(0)).put("title","Changed on another device");require(((List<?>)method.invoke(controller,preview)).size()==1,"Changed metadata must be shown before confirming transfer");checks.add("Transfer preview compares content identities and shows real metadata differences");
+        }catch(ReflectiveOperationException error){throw new IllegalStateException(error);}});
         steps.add(() -> capture("01-home"));
         steps.add(() -> { click("Медиатека"); });
         steps.add(() -> { assertTableCount(3); capture("02-library"); });
@@ -205,3 +214,4 @@ public final class DesktopUiFlowHarness extends Application {
     /** Plain launcher avoids Java's module-path special case for an Application main class. */
     public static final class Launcher { public static void main(String[] args) { DesktopUiFlowHarness.main(args); } }
 }
+
