@@ -1,6 +1,6 @@
 # Auralis: Linux и публикация в магазинах
 
-Подготовка исходников 0.8.0, 28 октября 2026. Контакт: **auralishelp@mail.ru**.
+Подготовка исходников 0.9.0, 29 октября 2026. Контакт: **auralishelp@mail.ru**.
 Платный музыкальный сервер не нужен: на телефоне можно выбрать «Продолжить без аккаунта» и импортировать свои файлы.
 
 ## Linux: Ubuntu 24.04, x86_64
@@ -13,14 +13,14 @@
    git clone https://github.com/Hollwestn/Auralis.git
    cd Auralis
    bash scripts/build-linux.sh deb
-   sudo apt install ./release/linux/auralis_0.8.0_amd64.deb
+   sudo apt install ./release/linux/auralis_0.9.0_amd64.deb
    ```
 
 2. Запустите **Auralis** из меню приложений. Имя DEB проверьте через `ls release/linux/*.deb`, если ваша версия jpackage формирует другое имя. Java включена в пакет; FFmpeg устанавливается как системная зависимость. GPU-графике нужен OpenGL 3.3 и рабочий драйвер. Если драйвер не поддерживает её, отключите графику звука в настройках.
 3. Кнопкой «Добавить музыку» выберите файлы. Данные хранятся в `${XDG_DATA_HOME:-$HOME/.local/share}/auralis`. Обновление пакета их не удаляет. Для запуска из исходников: `bash scripts/run-desktop.sh`.
-4. Переносимый архив: `bash scripts/build-linux.sh app-image`, затем распакуйте `release/linux/Auralis-0.8.0-linux-x86_64.tar.gz` и запустите `Auralis/bin/Auralis`. Системные библиотеки и FFmpeg всё равно нужны. `rpm` предусмотрен как дополнительный формат, но Fedora/RPM пока не проверены.
+4. Переносимый архив: `bash scripts/build-linux.sh app-image`, затем распакуйте `release/linux/Auralis-0.9.0-linux-x86_64.tar.gz` и запустите `Auralis/bin/Auralis`. Системные библиотеки и FFmpeg всё равно нужны. `rpm` предусмотрен как дополнительный формат, но Fedora/RPM пока не проверены.
 
-Сборка DEB также описана в GitHub Actions → **Linux packages** → **Run workflow**. Загрузите результат из раздела Artifacts успешного запуска. Linux-пакеты собираются на Linux, а не средствами Windows. На этом ПК Linux не установлен; результаты фактической проверки указаны в [отчёте](verification/STORE_LINUX_080.md).
+Сборка DEB также описана в GitHub Actions → **Linux packages** → **Run workflow**. Загрузите результат из раздела Artifacts успешного запуска. Linux-пакеты собираются на Linux, а не средствами Windows. На этом ПК Linux не установлен; результаты фактической проверки указаны в [отчёте](verification/UPDATE_090.md).
 
 ## Перед первой публикацией телефона
 
@@ -51,7 +51,7 @@
 ## Google Play
 
 1. В `apps/mobile` выполните `npx eas-cli@latest build --platform android --profile google-play`. Настройте постоянный ключ через предложенный менеджер credentials. Сохраните защищённую резервную копию ключа и паролей; не отправляйте их в GitHub.
-2. Загрузите полученный **AAB** в Play Console → приложение Auralis → **Internal testing**. Текущие настройки: version 0.8.0, code 13, target API 36. При следующей загрузке увеличьте versionCode в `app.config.ts`.
+2. Загрузите полученный **AAB** в Play Console → приложение Auralis → **Internal testing**. Текущие настройки: version 0.9.0, code 14, target API 36. При следующей загрузке увеличьте versionCode в `app.config.ts`.
 3. Заполните карточку по [материалам](STORE_MATERIALS.md), возрастной рейтинг, Data safety и удаление аккаунта. Проверьте на телефоне импорт, фоновое воспроизведение, экран блокировки, графику, паузу и перезапуск. Для новых личных аккаунтов Google может требовать закрытый тест: 12 участников непрерывно 14 дней перед запросом доступа к production.
 4. Проверьте поддержку страниц памяти 16 КБ через Play Console / App Bundle Explorer и тестовое устройство или эмулятор с 16 КБ. Проверка zipalign у APK сама по себе не доказывает совместимость всех ELF-библиотек в AAB.
 
@@ -73,12 +73,12 @@
 ## App Store / iPhone
 
 1. Нужны Apple Developer Program, приложение в App Store Connect с тем же bundle ID и сертификаты/профиль Apple. Из Windows можно заказать сборку на macOS в EAS: `npx eas-cli@latest build --platform ios --profile app-store`. EAS запросит вашу авторизацию Apple и подготовит подпись. Стоимость/квоты облачных сборок зависят от аккаунта; музыкальный сервер для этого не нужен.
-2. Полученный IPA загрузите через `npx eas-cli@latest submit --platform ios --profile app-store`. Команду запускает владелец после проверки, она отправляет сборку в App Store Connect. Затем добавьте её в TestFlight и проверьте на реальном iPhone. На собственном Mac можно вместо EAS выполнить `npx expo prebuild --platform ios`, открыть workspace в Xcode, настроить Signing и выбрать Product → Archive.
-3. Проверьте импорт через Files, звук в фоне/при блокировке, собственный PCM-анализ, GPU-графику, расход батареи, iPad-разметку и удаление аккаунта на тестовом сервере. iOS native-код и IPA в Windows не проверены; Hermes export не заменяет запуск на iPhone.
+2. Полученный IPA загрузите через `npx eas-cli@latest submit --platform ios --profile app-store`. Команду запускает владелец после проверки, она отправляет сборку в App Store Connect. Затем добавьте её в TestFlight и проверьте на реальном iPhone. На собственном Mac с Xcode 26.2 / Swift 6.2 или новее можно вместо EAS выполнить `npx expo prebuild --platform ios`, открыть workspace в Xcode, настроить Signing и выбрать Product → Archive.
+3. Проверьте импорт через Files, звук в фоне/при блокировке, собственный PCM-анализ, GPU-графику, расход батареи, iPad-разметку и удаление аккаунта на тестовом сервере. Нативное приложение и расширение виджета собраны для ARM64-симулятора на macOS с Xcode 26.2; подробности в [отчёте 0.9.0](verification/UPDATE_090.md). Подписанного IPA ещё нет; компиляция и Hermes export не заменяют запуск на iPhone.
 4. Заполните App Privacy по фактическим данным и SDK, добавьте политику, поддержку, реальные скриншоты и [заметки проверяющему](STORE_MATERIALS.md). После TestFlight отправьте версию на App Review. Соответствие правилам и результат модерации заранее не гарантируются.
 
 ## Что ещё требуется от владельца
 
-Включить публичные страницы, привязать Expo projectId, настроить production-подписи и аккаунты магазинов, пройти тесты на реальных устройствах и заполнить анкеты. В репозитории нет ваших production-ключей, подписанного IPA или готового магазинного AAB. Старые Preview/Test APK и Windows EXE не являются магазинными сборками 0.8.0.
+Включить публичные страницы, привязать Expo projectId, настроить production-подписи и аккаунты магазинов, пройти тесты на реальных устройствах и заполнить анкеты. В репозитории нет ваших production-ключей, подписанного IPA или готового магазинного AAB. Старые Preview/Test APK и Windows EXE не являются магазинными сборками 0.9.0.
 
 Источники требований: [jpackage](https://docs.oracle.com/en/java/javase/25/jpackage/packaging-overview.html), [EAS](https://docs.expo.dev/build/introduction/), [Google target API](https://support.google.com/googleplay/android-developer/answer/11926878), [тестирование Play](https://support.google.com/googleplay/android-developer/answer/14151465), [16 КБ](https://developer.android.com/guide/practices/page-sizes), [RuStore](https://www.rustore.ru/help/developers/publishing-and-verifying-apps/app-publication), [правила App Store](https://developer.apple.com/app-store/review/guidelines/).

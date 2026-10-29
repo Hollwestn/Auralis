@@ -1,10 +1,7 @@
-# Linux
+# Auralis для Linux 0.9.0
 
-Сборка Ubuntu 24.04 x86_64: `bash scripts/build-linux.sh deb`.
-Пакеты появляются здесь после успешной сборки на Linux. На Windows они не создаются.
-В GitHub Actions предусмотрен процесс **Linux packages**.
+`auralis_0.9.0_amd64.deb`: Ubuntu 24.04 x86_64. Пакет собран, установлен и запущен в [GitHub Actions](https://github.com/Hollwestn/Auralis/actions/runs/40854758108). [Артефакт с DEB и скриншотом](https://github.com/Hollwestn/Auralis/actions/runs/40854758108/artifacts/12888448766) доступен до 5 ноября 2026.
 
-Варианты: `deb`, `rpm` (дополнительный, не проверен), `app-image` (каталог с runtime, упакованный в tar.gz; это не формат AppImage).
-Инструкция: [RELEASE_GUIDE](../../docs/RELEASE_GUIDE.md). Проверки и ограничения: [отчёт](../../docs/verification/STORE_LINUX_080.md).
+Установка: `sudo apt install ./auralis_0.9.0_amd64.deb`, запуск: `auralis`. FFmpeg и системные библиотеки установятся как зависимости. Сборка из исходников: `bash scripts/build-linux.sh deb`. RPM и переносимый tar.gz отдельно не проверялись.
 
-DEB 0.8.0 собран, установлен и запущен в [Ubuntu CI](https://github.com/Hollwestn/Auralis/actions/runs/40727004279). [Артефакт](https://github.com/Hollwestn/Auralis/actions/runs/40727004279/artifacts/12834055712) хранится до 4 ноября 2026. RPM и переносимый tar.gz отдельно не проверены.
+[Руководство](../../docs/UPDATE_090.md) · [Отчёт](../../docs/verification/UPDATE_090.md).

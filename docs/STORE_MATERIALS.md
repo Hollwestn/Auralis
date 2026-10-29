@@ -51,3 +51,9 @@
 Удаление аккаунта выполняет серверный API и требует доступного сервера. При утрате входа пользователь связывается с администратором своего сервера. Поддержка Auralis помогает с процедурой, но не имеет доступа к произвольному частному серверу и не может обещать удалить данные на нём самостоятельно. Перед релизом проверить сценарий на доступном тестовом сервере и соблюдение требований магазина к внешнему запросу удаления.
 
 Ссылки: [Data safety Google](https://support.google.com/googleplay/android-developer/answer/10787469), [удаление аккаунта Google](https://support.google.com/googleplay/android-developer/answer/13327111), [App Review](https://developer.apple.com/app-store/review/guidelines/), [privacy manifest Expo](https://docs.expo.dev/guides/apple-privacy/).
+
+## Дополнения 0.9.0
+
+Камера запрашивается только для сканирования QR локального обмена; есть ввод кода вручную. Музыка и выбранные плейлисты передаются напрямую на подтверждённое устройство по TLS с проверкой сертификата из QR. Виджет показывает название/исполнителя и открывает управление плеером. Файлы резервных копий сохраняет сам пользователь через системное меню. Эти функции не требуют серверов разработчика.
+
+iOS объявляет локальный сетевой доступ (`NSAllowsLocalNetworking`) для прямого соединения по IP с временным сертификатом. Проверка приватного адреса, TLS и привязка к сертификату выполняются собственным транспортом; защита публичных доменов ATS сохраняется. Основание: [локальная сеть Apple](https://developer.apple.com/documentation/bundleresources/information-property-list/nsapptransportsecurity/nsallowslocalnetworking), [проверка доверия URLSession](https://developer.apple.com/documentation/foundation/performing-manual-server-trust-authentication).

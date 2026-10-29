@@ -1,3 +1,5 @@
+> Актуальная проверка **0.9.0** от 29.10.2026: [полный отчёт](docs/verification/UPDATE_090.md). Ниже сохранены результаты прежних версий.
+
 # Подготовка Linux и магазинов 0.8.0 — 28.10.2026
 
 Linux Ubuntu 24.04 x86_64: 48 тестов, сборка настоящего DEB, установка и запуск окна комплектным runtime прошли в GitHub Actions. Mobile: TypeScript, ESLint, 24 теста, Android prebuild, тестовый arm64 APK 0.8.0/code13 и Android/iOS Hermes export. Подготовлены production-профили, страницы поддержки/конфиденциальности и русский гайд. Магазинные AAB/IPA не подписывались; физический телефон 0.8.0 не проверялся. В аудите toolchain остаются 3 high и 5 low; исправлены node-forge и воспроизводимость XML-парсера. [Подробный отчёт и ограничения](docs/verification/STORE_LINUX_080.md) · [Гайд](docs/RELEASE_GUIDE.md).

@@ -1,5 +1,7 @@
 # Что скачать с GitHub
 
+**0.9.0:** исходники обновлены. Windows EXE и Android APK собраны в локальной папке `release`; они ещё не заменили файлы публичного выпуска 0.6.2. Для Linux есть [проверенный пакет 0.9.0 из Actions](https://github.com/Hollwestn/Auralis/actions/runs/40854758108/artifacts/12888448766), доступный до 5 ноября 2026. [Руководство 0.9.0](UPDATE_090.md).
+
 Готовые файлы находятся в [Releases Auralis](https://github.com/Hollwestn/Auralis/releases). Кнопка GitHub **Code → Download ZIP** скачивает исходники; установщики находятся отдельно в выпуске.
 
 ## Windows

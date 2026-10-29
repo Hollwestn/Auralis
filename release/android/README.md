@@ -1,9 +1,7 @@
-# Auralis для Android
+# Auralis для Android 0.9.0
 
-[Скачать APK — Android 0.6.2 Preview, arm64, Android 7+](https://github.com/inalinalinal2009-oss/Auralis/releases/download/v0.6.2-preview/Auralis-Android-Test.apk)
+В локальной поставке: `Auralis-Android-0.9.0-Preview.apk` (ARM64, Android 7+, код версии 14). Сборка автономная, тестовая подпись совпадает с предыдущей 0.8.0 — можно устанавливать поверх неё. Данные приложения при обновлении сохраняются.
 
-Откройте скачанный APK на телефоне и разрешите установку из выбранного источника. После запуска выберите «Продолжить без аккаунта», чтобы добавить собственную музыку из памяти телефона, либо подключите свой сервер.
+[Новые функции и установка](../../docs/UPDATE_090.md) · [Проверки](../../docs/verification/UPDATE_090.md).
 
-Сборка имеет тестовую подпись. Полная проверка нового офлайн-сценария на физическом устройстве пока не завершена.
-
-[Установка Android](../../docs/ANDROID_INSTALLATION.md) · [Локальная библиотека](../../docs/MOBILE_OFFLINE_GUIDE.md) · [Все файлы выпуска](https://github.com/inalinalinal2009-oss/Auralis/releases/tag/v0.6.2-preview)
+В публичном GitHub Releases пока остаётся [старый APK 0.6.2](https://github.com/Hollwestn/Auralis/releases/tag/v0.6.2-preview); это другая версия. APK 0.9.0 не включён в Git-дерево.

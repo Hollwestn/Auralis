@@ -1,10 +1,7 @@
-# Auralis для Windows
+# Auralis для Windows 0.9.0
 
-- [Скачать установщик EXE — Windows x64, версия 0.6.1](https://github.com/inalinalinal2009-oss/Auralis/releases/download/v0.6.2-preview/Auralis-Setup.exe)
-- [Скачать установщик MSI — Windows x64, версия 0.6.1](https://github.com/inalinalinal2009-oss/Auralis/releases/download/v0.6.2-preview/Auralis-0.6.1.msi)
+В локальной поставке: `Auralis-0.9.0.exe` (установщик), `Auralis-Setup.exe` (тот же установщик), `Auralis/Auralis.exe` (переносимая папка с runtime). Java и FFmpeg включены.
 
-Java и FFmpeg входят в установщик. Для локальной музыки сервер не требуется.
+Перед обновлением 0.1 выполните `Safe-Update.ps1`, как описано в [инструкции](../../docs/WINDOWS_INSTALLATION.md). [Возможности 0.9.0](../../docs/UPDATE_090.md) · [Проверки](../../docs/verification/UPDATE_090.md).
 
-[Установка и обновление](../../docs/WINDOWS_INSTALLATION.md) · [Все файлы выпуска](https://github.com/inalinalinal2009-oss/Auralis/releases/tag/v0.6.2-preview)
-
-Установщики размещены в GitHub Releases, поскольку их размер превышает лимит обычного файла репозитория.
+В публичном Releases пока находятся [старые установщики](https://github.com/Hollwestn/Auralis/releases/tag/v0.6.2-preview). EXE 0.9.0 собран локально; в Git-дерево он не включён.

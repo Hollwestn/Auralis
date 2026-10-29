@@ -1,4 +1,6 @@
-# Начните здесь: Auralis — обновление 22.10.2026
+# Начните здесь: Auralis 0.9.0 — 29.10.2026
+
+**Новые функции 0.9.0:** [пошаговое руководство](docs/UPDATE_090.md) · [результаты проверки](docs/verification/UPDATE_090.md). Windows: `release/desktop/Auralis-0.9.0.exe`; Android: `release/android/Auralis-Android-0.9.0-Preview.apk`; Linux: `release/linux/auralis_0.9.0_amd64.deb`. Для резервных копий, переноса по Wi-Fi и локальной музыки сервер не нужен.
 
 Linux и магазины приложений: [руководство 0.8.0](docs/RELEASE_GUIDE.md). Поддержка: auralishelp@mail.ru.
 
