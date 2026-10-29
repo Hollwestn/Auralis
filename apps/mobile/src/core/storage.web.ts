@@ -7,6 +7,9 @@ const histories = new Map<string, unknown[]>();
 const states = new Map<string, Record<string, unknown>>();
 const key = (value: Session) => `${value.server}|${value.user.id}`;
 export const storage = {
+  restoredDirectory(_value: Session): import('expo-file-system').Directory { throw new Error('Восстановление файлов доступно в установленном приложении.'); },
+  async recoverRestore(_value: Session) {},
+  commitRestore(value: Session, library: CachedLibrary, _downloads: OfflineTrack[], state: Record<string, unknown>) { libraries.set(key(value), library); states.set(key(value), state); },
   async session() { return session; },
   async saveSession(value: Session | null) { session = value; },
   async library(value: Session) { return libraries.get(key(value)) || null; },

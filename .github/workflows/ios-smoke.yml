@@ -1,0 +1,44 @@
+name: iOS simulator verification
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'apps/mobile/**'
+      - '.github/workflows/ios-smoke.yml'
+permissions:
+  contents: read
+jobs:
+  simulator:
+    runs-on: macos-15
+    timeout-minutes: 50
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: apps/mobile/package-lock.json
+      - name: Dependencies and native patches
+        run: npm ci
+      - name: Types, lint and portable logic
+        run: npm run typecheck && npm run lint && npm test
+      - name: Generate iOS project and widget extension
+        run: npx expo prebuild --platform ios --no-install
+        env:
+          CI: '1'
+          AURALIS_STORE_RELEASE: '0'
+      - name: Install CocoaPods
+        run: pod install --project-directory=ios
+      - name: Compile app and widget without Apple credentials
+        run: |
+          set -o pipefail
+          xcodebuild -workspace ios/Auralis.xcworkspace -scheme Auralis -sdk iphonesimulator -configuration Debug -destination 'generic/platform=iOS Simulator' -derivedDataPath ios/build CODE_SIGNING_ALLOWED=NO build 2>&1 | tee ios-build.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-build-diagnostics
+          path: apps/mobile/ios-build.log
+          retention-days: 3

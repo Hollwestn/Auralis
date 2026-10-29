@@ -1,13 +1,16 @@
 {
   "name": "auralis-mobile",
-  "version": "0.8.0",
+  "version": "0.9.0",
   "main": "expo-router/entry",
   "dependencies": {
+    "@expo/ui": "~58.0.25",
     "@expo/vector-icons": "^15.0.2",
     "@react-native-community/slider": "5.2.1",
     "expo": "~58.0.14",
     "expo-audio": "~58.0.9",
+    "expo-battery": "~58.0.3",
     "expo-build-properties": "~58.0.11",
+    "expo-camera": "~58.0.14",
     "expo-constants": "~58.0.12",
     "expo-crypto": "~58.0.7",
     "expo-document-picker": "~58.0.4",
@@ -17,9 +20,12 @@
     "expo-linking": "~58.0.13",
     "expo-router": "~58.0.23",
     "expo-secure-store": "~58.0.2",
+    "expo-sharing": "~58.0.21",
     "expo-splash-screen": "~58.0.10",
     "expo-status-bar": "~58.0.3",
     "expo-system-ui": "~58.0.6",
+    "expo-widgets": "~58.0.25",
+    "fflate": "^0.8.3",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.0",
@@ -41,7 +47,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src tests app.config.ts",
     "test": "node --experimental-transform-types --test tests/*.test.mjs",
-    "postinstall": "node scripts/patch-expo-audio.cjs",
+    "postinstall": "node scripts/patch-expo-audio.cjs && node scripts/patch-expo-widgets.cjs",
     "export:android": "expo export --platform android",
     "export:ios": "expo export --platform ios"
   },
@@ -50,7 +56,8 @@
     "autolinking": {
       "android": {
         "buildFromSource": [
-          "expo-audio"
+          "expo-audio",
+          "expo-widgets"
         ]
       },
       "ios": {

@@ -1,5 +1,5 @@
 export type ThemeName = 'ObsidianYellow' | 'Monochrome' | 'CrimsonNoir' | 'DeepViolet' | 'ArcticSilver' | 'Jade' | 'Amber' | 'Azure';
-export type Track = { id: string; title: string; artist: string; album: string; genre: string; durationSeconds: number; sizeBytes: number; mimeType: string; source: 'SERVER' | 'LOCAL'; coverUrl: string | null; importedAt?: string };
+export type Track = { id: string; title: string; artist: string; album: string; genre: string; durationSeconds: number; sizeBytes: number; mimeType: string; source: 'SERVER' | 'LOCAL'; coverUrl: string | null; importedAt?: string; contentHash?: string; trackNumber?: number; discNumber?: number; loudnessLufs?: number; truePeakDb?: number; samplePeakDb?: number; missing?: boolean };
 export type User = { id: string; email: string; displayName: string };
 export type Session = { token: string; user: User; server: string; mode?: 'local' | 'server' };
 export type Playlist = { id: string; name: string; trackIds: string[]; updatedAt: string; version?: number };

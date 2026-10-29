@@ -1,3 +1,6 @@
+import * as Battery from 'expo-battery';
+import { requireNativeModule } from 'expo';
+import { FrameBudget, budgetScale, budgetFps, graphicsBudgetTelemetry } from '../visuals/budget';
 import { visualClockRate } from '../visuals/motion';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, AppState, PixelRatio, Text, View, type ViewStyle } from 'react-native';
@@ -7,19 +10,22 @@ import { File, Paths } from 'expo-file-system';
 import { readSpectrumUniforms } from '../core/spectrum';
 import { fragmentShader, qualityRenderScale, vertexShader, visualModes, type VisualMode, type VisualQuality } from '../visuals/shaders';
 
-function ShaderVisual({ mode = 'Black Hole', accent = '#F8D34A', intensity = 1, quality = 'Balanced', idleSpeed = 1, playingSpeed = .75, fps, animate = true, enabled = true, playing = false, coverUrl, coverToken, style }: { mode?: VisualMode; accent?: string; intensity?: number; quality?: VisualQuality; idleSpeed?: number; playingSpeed?: number; fps?: 15|30|45|60; animate?: boolean; enabled?: boolean; playing?: boolean; coverUrl?: string; coverToken?: string; style?: ViewStyle }) {
+function ShaderVisual({ adaptive = true, mode = 'Black Hole', accent = '#F8D34A', intensity = 1, quality = 'Balanced', idleSpeed = 1, playingSpeed = .75, fps, animate = true, enabled = true, playing = false, coverUrl, coverToken, style }: { adaptive?: boolean; mode?: VisualMode; accent?: string; intensity?: number; quality?: VisualQuality; idleSpeed?: number; playingSpeed?: number; fps?: 15|30|45|60; animate?: boolean; enabled?: boolean; playing?: boolean; coverUrl?: string; coverToken?: string; style?: ViewStyle }) {
   const [error, setError] = useState('');
+  const [autoLevel,setAutoLevel]=useState(0);
+  const budget=useRef(new FrameBudget());
+  const power=useRef({low:false,thermal:0});
   const [bounds, setBounds] = useState({ width: 1, height: 1 });
   // Bound physical pixels as well as layout points on dense phone screens.
   const pixelBudget = quality === 'Ultra' ? 900 : quality === 'Balanced' ? 640 : 400;
-  const renderScale = Math.min(qualityRenderScale[quality], pixelBudget / Math.max(1, bounds.width, bounds.height) / PixelRatio.get());
-  const settings = useRef({ mode, accent, intensity, quality, idleSpeed, playingSpeed, fps, animate, enabled, playing, reduced: false, active: true, focused: true });
+  const renderScale = (adaptive ? budgetScale[autoLevel] : 1) * Math.min(qualityRenderScale[quality], pixelBudget / Math.max(1, bounds.width, bounds.height) / PixelRatio.get());
+  const settings = useRef({ adaptive, mode, accent, intensity, quality, idleSpeed, playingSpeed, fps, animate, enabled, playing, reduced: false, active: true, focused: true });
   const frame = useRef(0); const draw = useRef<(() => void) | null>(null); const cleanup = useRef<(() => void) | null>(null);
   const localCover = useRef<string | null>(null);
   const uploadCover = useRef<((uri: string | null) => void) | null>(null);
   const stop = useCallback(() => { cancelAnimationFrame(frame.current); frame.current = 0; }, []);
   const start = useCallback(() => { stop(); if (settings.current.active && settings.current.focused && settings.current.enabled) draw.current?.(); }, [stop]);
-  useEffect(() => { Object.assign(settings.current, { mode, accent, intensity, quality, idleSpeed, playingSpeed, fps, animate, enabled, playing }); start(); }, [mode, accent, intensity, quality, idleSpeed, playingSpeed, fps, animate, enabled, playing, start]);
+  useEffect(() => { Object.assign(settings.current, { adaptive, mode, accent, intensity, quality, idleSpeed, playingSpeed, fps, animate, enabled, playing }); start(); }, [adaptive, mode, accent, intensity, quality, idleSpeed, playingSpeed, fps, animate, enabled, playing, start]);
   useEffect(() => {
     // A backing surface resize clears its pixels. Repaint once after layout has
     // settled, including when playback is paused and no animation loop runs.
@@ -43,6 +49,11 @@ function ShaderVisual({ mode = 'Black Hole', accent = '#F8D34A', intensity = 1, 
     return () => { reduce.remove(); state.remove(); stop(); cleanup.current?.(); };
   }, [start, stop]);
   useFocusEffect(useCallback(() => { settings.current.focused = true; start(); return () => { settings.current.focused = false; stop(); }; }, [start, stop]));
+  useEffect(()=>{
+    let active=true;
+    const update=()=>{if(!settings.current.active||!settings.current.focused)return;void Battery.isLowPowerModeEnabledAsync().then(value=>{if(active)power.current.low=value;}).catch(()=>{});try{const native=requireNativeModule('ExpoAudio') as {getAuralisDeviceBudget?:()=>{thermal:number}};if(active)power.current.thermal=native.getAuralisDeviceBudget?.().thermal||0;}catch{}}
+    const battery=Battery.addLowPowerModeListener(event=>{power.current.low=event.lowPowerMode;});update();const timer=setInterval(update,10000);return()=>{active=false;clearInterval(timer);battery.remove();};
+  },[]);
   const context = (gl: ExpoWebGLRenderingContext) => {
     try {
       const compile = (kind: number, source: string) => { const shader = gl.createShader(kind)!; gl.shaderSource(shader, source); gl.compileShader(shader); if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(shader) || 'GLSL compilation failed'); return shader; };
@@ -66,9 +77,11 @@ function ShaderVisual({ mode = 'Black Hole', accent = '#F8D34A', intensity = 1, 
         const config = settings.current;
         if (!config.active || !config.focused || !config.enabled) return;
         const now = Date.now(); const requestedFps = config.fps || (config.quality === 'Eco' ? 15 : config.quality === 'Ultra' ? 60 : 30);
-        const targetFps = config.playing ? requestedFps : Math.min(15, requestedFps);
+        const capped = config.adaptive ? budgetFps(requestedFps,budget.current.level) : requestedFps;
+        const targetFps = config.playing ? capped : Math.min(15, capped);
         const animated = !config.reduced && config.animate;
         if (animated && now - lastDraw < 1000 / targetFps) { frame.current = requestAnimationFrame(render); return; }
+        const elapsed=lastDraw ? now-lastDraw : 1000/targetFps;const drawStart=performance.now();
         if (lastDraw && animated) clock += Math.min(.1, (now-lastDraw)/1000) * visualClockRate(config.playing, config.idleSpeed, config.playingSpeed); lastDraw = now;
         gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight); gl.useProgram(program); gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
         const position = gl.getAttribLocation(program, 'position'); gl.enableVertexAttribArray(position); gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
@@ -82,6 +95,7 @@ function ShaderVisual({ mode = 'Black Hole', accent = '#F8D34A', intensity = 1, 
         gl.uniform4f(locations.u_audio, spectrum.levels[0], spectrum.levels[1], spectrum.levels[2], spectrum.levels[3]);
         gl.uniform1fv(locations.u_bands, spectrum.bands);
         gl.drawArrays(gl.TRIANGLES, 0, 6); gl.flush(); gl.endFrameEXP();
+        if(config.adaptive&&animated){const previousLevel=budget.current.level;const level=budget.current.sample(performance.now()-drawStart,elapsed,targetFps,performance.now(),power.current.low,power.current.thermal);graphicsBudgetTelemetry.level=level;if(level!==previousLevel)setAutoLevel(level);}else graphicsBudgetTelemetry.level=0;
         // Native/Web backing buffers can resize after the layout callback. Present
         // a few static frames while layout settles, then stop completely when animations are disabled.
         if (animated || settlingFrames-- > 0) frame.current = requestAnimationFrame(render);

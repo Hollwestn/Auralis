@@ -1,14 +1,20 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, AppState, Platform } from 'react-native';
+import { AccessibilityInfo, Alert, AppState, Platform } from 'react-native';
 import { File } from 'expo-file-system';
 import * as DocumentPicker from 'expo-document-picker';
 import { randomUUID, getRandomValues } from 'expo-crypto';
+import { requireNativeModule } from 'expo';
+import { normalizeAudioPreferences, defaultAudioPreferences, normalizationGainDb, albumKey, type AudioPreferences } from './audioPreferences';
 import { setAudioModeAsync, useAudioPlaylist, useAudioPlaylistStatus } from 'expo-audio';
 import { AuralisApi, ApiError } from './api';
 import { storage } from './storage';
 import { readLocalMetadata } from './metadata';
 import { artworkSource } from './artwork';
+import { createBackup, inspectBackup, extractBackup, type BackupPreview } from './backupIO';
+import { mergeBackup } from './backupFormat';
+import { moveQueue, insertQueue, removeQueue } from './queue';
 import { normalizeTheme, themes } from './theme';
+import { updateNowPlaying } from '../widgets/NowPlaying';
 import { setNativeLoop, setNativeRate, setNativeVolume, setNativeRepeat } from './nativeAudio';
 import { acceptSpectrum, audioTelemetry, clearSpectrum, type SpectrumFrame } from './spectrum';
 import { visualModes, normalizeVisualPreferences, type VisualPreferences } from '../visuals/shaders';
@@ -22,12 +28,17 @@ type PendingHistory = Omit<HistoryEntry, 'id'>;
 function useAuralisStore() {
   const [session, setSession] = useState<Session | null>(null);
   const [hydrated, setHydrated] = useState(false);
+  const [systemReducedMotion,setSystemReducedMotion]=useState(false);
+  useEffect(()=>{void AccessibilityInfo.isReduceMotionEnabled().then(setSystemReducedMotion);const listener=AccessibilityInfo.addEventListener('reduceMotionChanged',setSystemReducedMotion);return()=>listener.remove();},[]);
   const [library, setLibraryState] = useState<CachedLibrary>(empty);
   const libraryRef = useRef<CachedLibrary>(empty);
   const [downloads, setDownloads] = useState<OfflineTrack[]>([]);
   const [theme, setTheme] = useState<ThemeName>('ObsidianYellow');
   const [visuals, setVisuals] = useState<VisualPreferences>(() => normalizeVisualPreferences(null));
   const [experience, setExperience] = useState<Experience>(defaultExperience);
+  const [audioPreferences,setAudioPreferences]=useState<AudioPreferences>(defaultAudioPreferences);
+  const [analysisProgress,setAnalysisProgress]=useState<{done:number;total:number;failed:number}|null>(null);
+  const analysisActive=useRef(false);
   const [shuffleEnabled, setShuffleEnabled] = useState(false);
   const [busy, setBusy] = useState(false);
   const [online, setOnline] = useState(false);
@@ -41,6 +52,11 @@ function useAuralisStore() {
   const [remotePlayback, setRemotePlayback] = useState<Playback | null>(null);
   const [sleepDeadline, setSleepDeadline] = useState(0);
   const [sleepRemaining, setSleepRemaining] = useState(0);
+  const [backupPreview, setBackupPreview] = useState<BackupPreview | null>(null);
+  const [libraryWorking, setLibraryWorking] = useState(false);
+  const [queueRevision, setQueueRevision] = useState(0);
+  const [canUndoQueue,setCanUndoQueue]=useState(false);
+  const queueUndo = useRef<({ type: 'remove'; track: Track; index: number } | { type: 'move'; from: number; to: number })[]>([]);
   const player = useAudioPlaylist({ sources: [], updateInterval: 1000, loop: 'none' });
   const status = useAudioPlaylistStatus(player);
   const setSleepTimer = useCallback(async (minutes: number) => {
@@ -104,6 +120,7 @@ function useAuralisStore() {
   }, [api, session]);
 
   const activate = useCallback(async (value: Session) => {
+    await storage.recoverRestore(value);
     const [cached, offline, history, state] = await Promise.all([storage.library(value), storage.downloads(value), storage.pendingHistory(value), storage.localState(value)]);
     cacheOwner.current = `${value.server}|${value.user.id}`;
     const available = offline.filter(item => storage.exists(item.uri));
@@ -113,6 +130,7 @@ function useAuralisStore() {
     setTheme(normalizeTheme(state.theme) || 'ObsidianYellow');
     setVisuals(normalizeVisualPreferences(state.visuals));
     setExperience({ ...defaultExperience, ...state.experience as Experience });
+    setAudioPreferences(normalizeAudioPreferences(state.audioPreferences));
     setRemotePlayback(state.playback as Playback || null);
     await storage.saveSession(value); sessionRef.current = value; setSession(value);
   }, [setLibrary]);
@@ -228,7 +246,7 @@ function useAuralisStore() {
     return () => { clearInterval(timer); subscription.remove(); };
   }, [session, sync, recordCurrent, report]);
 
-  const play = useCallback(async (track: Track, items: Track[] = [track], position = 0, queueIndex?: number, shuffle = false) => {
+  const play = useCallback(async (track: Track, items: Track[] = [track], position = 0, queueIndex?: number, shuffle = false, autoplay = true) => {
     if (!session) return;
     try {
       await recordCurrent(false, false);
@@ -237,7 +255,7 @@ function useAuralisStore() {
       listened.current = 0; lastPosition.current = position;
       syncConflict.current = false;
       const available = online ? items : items.filter(item => downloads.some(download => download.track.id === item.id && storage.exists(download.uri)));
-      queueRef.current = available; activeTrack.current = track;
+      queueUndo.current=[];setCanUndoQueue(false);queueRef.current = available; activeTrack.current = track;
       player.pause(); player.clear();
       for (const item of available) {
         const saved = downloads.find(download => download.track.id === item.id && storage.exists(download.uri));
@@ -247,12 +265,22 @@ function useAuralisStore() {
       const requested = queueIndex !== undefined && available[queueIndex]?.id === track.id ? queueIndex : available.findIndex(item => item.id === track.id);
       activeQueueIndex.current = Math.max(0, requested); setShuffleEnabled(shuffle);
       player.skipTo(Math.max(0, requested));
+      localState.current.playback={trackId:track.id,queue:available.map(t=>t.id),queueIndex:Math.max(0,requested),positionSeconds:position,shuffle,repeat:player.loop==='single'?'ONE':player.loop==='all'?'ALL':'OFF',playing:false};storage.saveLocalState(session,localState.current);
       player.setActiveForLockScreen(true, { title: track.title, artist: track.artist, albumTitle: track.album });
       setQueue(available); setCurrent(track);
       if (position > 0) await player.seekTo(position);
-      player.play(); setNotice('');
+      if (autoplay) player.play(); setNotice('');
     } catch (error) { report(error); }
   }, [api, session, localMode, downloads, online, player, recordCurrent, report]);
+  const restoredSession = useRef('');
+  const resumePrepared = useRef<Promise<void>>(Promise.resolve());
+  useEffect(() => {
+    if(!hydrated || !session || !localMode || restoredSession.current===session.user.id)return;
+    restoredSession.current=session.user.id;
+    const saved=localState.current.playback as Playback | undefined;
+    const items=(saved?.queue || []).map(id=>libraryRef.current.tracks.find(t=>t.id===id)).filter((t):t is Track=>!!t&&!t.missing);
+    const track=items.find(t=>t.id===saved?.trackId);if(track){setNativeRepeat(player,saved?.repeat || 'OFF');resumePrepared.current=play(track,items,saved?.positionSeconds || 0,saved?.queueIndex,saved?.shuffle || false,false);}
+  },[hydrated,session,localMode,play,player]);
 
   useEffect(() => {
     if (!localMode) return;
@@ -370,6 +398,22 @@ function useAuralisStore() {
     setNativeRepeat(player, playback.repeat || 'OFF');
     await play(track, items.length ? items : [track], playback.positionSeconds || 0, playback.queueIndex, playback.shuffle || false);
   };
+  const widgetCommand = async (command: string) => {
+    if (!['open','toggle','next','previous'].includes(command)) return;
+    await new Promise(resolve => setTimeout(resolve, 0));
+    await resumePrepared.current;
+    if (command === 'open') return;
+    if (!activeTrack.current) { await resume(); return; }
+    if (command === 'toggle') {
+      if (player.playing) { player.pause(); await recordCurrent(); await sync(); }
+      else { if (player.duration > 0 && player.currentTime >= player.duration) await player.seekTo(0); player.play(); }
+    } else await next(command === 'previous' ? -1 : 1);
+  };
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    try { updateNowPlaying({ title: current?.title || 'Ваша музыка. Ваше пространство.', artist: current?.artist || 'Откройте Auralis', playing: status.playing, accent: themes[theme].accent }); }
+    catch { /* A system widget is optional; playback must remain available. */ }
+  }, [current?.title,current?.artist,status.playing,theme]);
   const savePlaylist = async (playlist: Playlist) => { if (session) { const saved = api ? await api.savePlaylist(playlist) : { ...playlist, updatedAt: new Date().toISOString() }; setLibrary(value => ({ ...value, playlists: value.playlists.map(item => item.id === saved.id ? saved : item) })); } };
   const createPlaylist = async (name: string) => { if (session && name.trim()) { const playlist = api ? await api.createPlaylist(name) : { id: randomUUID(), name: name.trim(), trackIds: [], updatedAt: new Date().toISOString() }; setLibrary(value => ({ ...value, playlists: [...value.playlists, playlist] })); } };
   const deletePlaylist = async (id: string) => { if (session) { if (api) await api.deletePlaylist(id); setLibrary(value => ({ ...value, playlists: value.playlists.filter(item => item.id !== id) })); } };
@@ -399,7 +443,8 @@ function useAuralisStore() {
           let metadata = {}; let metadataVersion: number | undefined;
           try { metadata = await readLocalMetadata(destination.uri, storage.coverTarget(session, id).uri); metadataVersion = 1; } catch { /* Some system decoders cannot read all tag containers. */ }
           if (sessionRef.current !== session) { destination.delete(); break; }
-          const track: Track = { id, title: info.title, artist: info.artist, album: '', genre: '', durationSeconds: 0, sizeBytes: destination.size, mimeType: info.mimeType, source: 'LOCAL', coverUrl: null, ...metadata, importedAt: new Date().toISOString() };
+          const restored=libraryRef.current.tracks.find(track=>track.id===id && track.missing);
+          const track: Track = { ...(restored || {}), id, title: info.title, artist: info.artist, album: '', genre: '', durationSeconds: 0, sizeBytes: destination.size, mimeType: info.mimeType, source: 'LOCAL', coverUrl: null, ...metadata, ...(restored ? { title:restored.title, artist:restored.artist, album:restored.album, genre:restored.genre, coverUrl:restored.coverUrl || null } : {}), contentHash:id.slice(6), missing:false, importedAt: new Date().toISOString() };
           const item: OfflineTrack = { track, uri: destination.uri, downloadedAt: new Date().toISOString(), metadataVersion };
           const files = [...(await storage.downloads(session)).filter(value => value.track.id !== id), item];
           storage.saveDownloads(session, files); setDownloads(files);
@@ -414,7 +459,7 @@ function useAuralisStore() {
   };
   const removeLocalTrack = async (id: string) => {
     if (!session || !localMode || importLock.current) return;
-    if (queue.some(track => track.id === id)) { await recordCurrent(); player.pause(); player.clear(); player.setActiveForLockScreen(false); setCurrent(null); setQueue([]); activeTrack.current = null; queueRef.current = []; }
+    for (let index=queueRef.current.length-1;index>=0;index--) if(queueRef.current[index].id===id) await removeQueueItem(index);
     const item = downloads.find(value => value.track.id === id); if (item) storage.deleteFile(item.uri);
     const files = downloads.filter(value => value.track.id !== id); storage.saveDownloads(session, files); setDownloads(files);
     setLibrary(value => withoutLocalTrack(value, id)); setWaveEntries(value => value.filter(entry => entry.track.id !== id));
@@ -432,8 +477,8 @@ function useAuralisStore() {
   const run = (task: () => Promise<unknown>) => { void task().catch(error => { report(error); Alert.alert('Auralis', error instanceof Error ? error.message : 'Не удалось выполнить действие.'); }); };
 
   const setLoop = (value: boolean) => setNativeLoop(player, value);
-  const setRate = (value: number) => setNativeRate(player, value);
-  const setVolume = (value: number) => setNativeVolume(player, value);
+  const setRate = (value: number) => {setNativeRate(player,value);if(session){localState.current['audio.rate']=value;storage.saveLocalState(session,localState.current);}};
+  const setVolume = (value: number) => { const native=player as unknown as {setAuralisVolume?:(value:number)=>void};if(native.setAuralisVolume)native.setAuralisVolume(value);else setNativeVolume(player,value);if(session){localState.current.volume=value;storage.saveLocalState(session,localState.current);} };
   const setRepeat = (value: 'OFF'|'ALL'|'ONE') => setNativeRepeat(player, value);
   const shuffleQueue = async () => {
     if (!current) return;
@@ -441,8 +486,91 @@ function useAuralisStore() {
     for (let index = others.length-1; index > 0; index--) { const random = getRandomValues(new Uint32Array(1))[0]; const target = random % (index+1); [others[index], others[target]] = [others[target], others[index]]; }
     await play(current, [current, ...others], status.currentTime, 0, true);
   };
+  const updateLocalMetadata = async (ids: string[], changes: Partial<Pick<Track,'title'|'artist'|'album'|'genre'|'trackNumber'|'discNumber'|'coverUrl'>>) => {
+    if(!session || !localMode || importLock.current)throw new Error('Редактор доступен для локальной библиотеки.');
+    const clean={...changes};for(const key of ['title','artist','album','genre'] as const)if(clean[key]!==undefined){if(typeof clean[key]!=='string'||clean[key]!.length>4096)throw new Error('Слишком длинное поле.');clean[key]=clean[key]!.trim();}
+    if(clean.title!==undefined&&!clean.title)throw new Error('Название не может быть пустым.');
+    for(const key of ['trackNumber','discNumber'] as const)if(clean[key]!==undefined&&(!Number.isInteger(clean[key])||clean[key]!<0||clean[key]!>(key==='discNumber'?999:9999)))throw new Error('Номер должен быть целым положительным числом.');
+    const selected=new Set(ids);const update=(track:Track)=>selected.has(track.id)?{...track,...clean}:track;
+    setLibrary(v=>({...v,tracks:v.tracks.map(update),favorites:v.favorites.map(update)}));
+    const offline=(await storage.downloads(session)).map(item=>({...item,track:update(item.track)}));storage.saveDownloads(session,offline);setDownloads(offline);
+    queueRef.current=queueRef.current.map(update);setQueue(queueRef.current);if(activeTrack.current&&selected.has(activeTrack.current.id)){activeTrack.current=update(activeTrack.current);setCurrent(activeTrack.current);player.updateLockScreenMetadata({title:activeTrack.current.title,artist:activeTrack.current.artist,albumTitle:activeTrack.current.album});}
+    setNotice('Метаданные сохранены в библиотеке. Исходные аудиофайлы сохранены.');
+  };
+  const pickTrackCover = async () => { if(!session)throw new Error('Нет локальной библиотеки.');const result=await DocumentPicker.getDocumentAsync({type:['image/png','image/jpeg'],copyToCacheDirectory:true});if(result.canceled)return null;const source=new File(result.assets[0].uri);if(source.size>16*1024*1024)throw new Error('Обложка должна быть меньше 16 МБ.');const destination=storage.coverTarget(session,randomUUID());await source.copy(destination);return destination.uri; };
   const currentArtwork = artworkSource(downloads.find(item => item.track.id === current?.id && item.track.coverUrl?.startsWith('file://'))?.track || current, session);
-  return { currentArtwork, setSleepTimer, sleepRemaining, session, localMode, enterLocal: () => activate(localSession), importMusic, importing, removeLocalTrack, hydrated, library, downloads, theme, visuals, experience, shuffleEnabled, shuffleQueue, setVisualPreferences, setExperiencePreferences, accent: themes[theme].accent, tint: themes[theme].tint, busy, online, notice, setNotice, activate, refresh, current, queue, status, play, next, togglePlayback, seek, favorite, download, removeDownload, downloading, waveEntries, startWave, remotePlayback, resume, sync, setColorTheme, savePlaylist, createPlaylist, deletePlaylist, savePreferences, feedback, clearHistory, logout, run, setLoop, setRepeat, setRate, setVolume };
+  useEffect(()=>{
+    if(Platform.OS==='web')return;
+    const native=player as unknown as {setAuralisAudioOptions?:(seconds:number,gains:number[],blocked:boolean[])=>void};
+    native.setAuralisAudioOptions?.(audioPreferences.crossfadeSeconds,queue.map(t=>audioPreferences.normalization?normalizationGainDb(t.loudnessLufs,t.truePeakDb??t.samplePeakDb,audioPreferences.targetLufs):0),queue.map(t=>audioPreferences.disabledAlbums.includes(albumKey(t))));
+  },[player,queue,audioPreferences]);
+  const saveAudioPreferences=async(change:Partial<AudioPreferences>)=>{const next=normalizeAudioPreferences({...audioPreferences,...change});setAudioPreferences(next);if(session){localState.current.audioPreferences=next;storage.saveLocalState(session,localState.current);}};
+  const analyzeLibrary=async()=>{
+    if(!session||!localMode||analysisActive.current)return;
+    if(Platform.OS==='web')throw new Error('Анализ файлов доступен в установленном приложении.');
+    const native=requireNativeModule('ExpoAudio') as {analyzeAuralisLoudness?:(uri:string)=>Promise<{loudnessLufs:number;samplePeakDb:number}>};
+    if(!native.analyzeAuralisLoudness)throw new Error('Установите новую сборку приложения с анализом громкости.');
+    analysisActive.current=true;const files=downloads.filter(d=>d.track.loudnessLufs===undefined&&storage.exists(d.uri));let done=0,failed=0;setAnalysisProgress({done,total:files.length,failed});
+    try{for(const item of files){if(!analysisActive.current||sessionRef.current!==session)break;try{const measurement=await native.analyzeAuralisLoudness(item.uri);if(!Number.isFinite(measurement.loudnessLufs)||!Number.isFinite(measurement.samplePeakDb))throw new Error('Некорректный анализ');if(sessionRef.current!==session)break;const latest=await storage.downloads(session);if(!latest.some(t=>t.track.id===item.track.id))continue;const update=(track:Track)=>track.id===item.track.id?{...track,...measurement}:track;const saved=latest.map(d=>({...d,track:update(d.track)}));storage.saveDownloads(session,saved);setDownloads(saved);setLibrary(v=>({...v,tracks:v.tracks.map(update),favorites:v.favorites.map(update)}));queueRef.current=queueRef.current.map(update);setQueue(queueRef.current);if(activeTrack.current?.id===item.track.id){activeTrack.current=update(activeTrack.current);setCurrent(activeTrack.current);}}catch{failed++;}done++;setAnalysisProgress({done,total:files.length,failed});}}finally{analysisActive.current=false;setAnalysisProgress(null);setNotice(`Анализ завершён: ${done-failed} · ошибок: ${failed}. Оригиналы сохранены.`);}
+  };
+  const sourceFor = (track: Track) => {
+    const saved = downloads.find(item => item.track.id === track.id && storage.exists(item.uri));
+    if (saved) return { uri: saved.uri, name: track.title };
+    if (api && session && online) return { uri: api.stream(track.id), headers: { Authorization: `Bearer ${session.token}` }, name: track.title };
+    throw new Error('Трек недоступен. Добавьте файл или подключитесь к серверу.');
+  };
+  const persistQueue = (items: Track[], index: number) => {
+    queueRef.current = items; activeQueueIndex.current = index; setQueue(items); setQueueRevision(v => v+1);setCanUndoQueue(queueUndo.current.length>0);
+    if (session) { localState.current.playback = { queue: items.map(t => t.id), queueIndex: index, trackId: items[index]?.id, positionSeconds: player.currentTime, repeat: player.loop === 'single' ? 'ONE' : player.loop === 'all' ? 'ALL' : 'OFF', shuffle: shuffleEnabled, playing: false }; storage.saveLocalState(session, localState.current); }
+  };
+  const queueTrack = async (track: Track, next = false) => {
+    if (!queueRef.current.length) { await play(track,[track],0,0,false,false); return; }
+    const index = next ? activeQueueIndex.current+1 : queueRef.current.length;
+    const state = insertQueue({ items: queueRef.current, index: activeQueueIndex.current }, track, index);
+    player.insert(sourceFor(track),index); persistQueue(state.items,state.index);
+  };
+  const moveQueueItem = async (from: number, to: number, undo = true) => {
+    const state = moveQueue({ items: queueRef.current, index: activeQueueIndex.current },from,to);
+    const native = player as unknown as { moveAuralisQueue?: (from: number,to: number) => void };
+    if (!native.moveAuralisQueue) throw new Error('Для перемещения без перезапуска звука установите новую сборку.');
+    if (undo) {queueUndo.current.push({ type:'move',from:to,to:from });if(queueUndo.current.length>20)queueUndo.current.shift();}
+    activeQueueIndex.current = state.index; native.moveAuralisQueue(from,to); persistQueue(state.items,state.index);
+  };
+  const removeQueueItem = async (index: number) => {
+    const previous = queueRef.current, state = removeQueue({ items: previous,index: activeQueueIndex.current },index);
+    queueUndo.current.push({ type:'remove',track: previous[index],index });if(queueUndo.current.length>20)queueUndo.current.shift();
+    if (index === activeQueueIndex.current) await recordCurrent(false,true);
+    queueRef.current = state.items; activeQueueIndex.current = state.index;
+    player.remove(index); persistQueue(state.items,state.index); activeTrack.current = state.items[state.index] || null; setCurrent(activeTrack.current);
+    if (!state.items.length) { player.pause(); player.setActiveForLockScreen(false); }
+  };
+  const undoQueue = async () => { const action=queueUndo.current.pop(); if (!action) return; if(action.type==='move') await moveQueueItem(action.from,action.to,false); else { const index=Math.min(action.index,queueRef.current.length);if(!queueRef.current.length)await play(action.track,[action.track],0,0,false,false);else{const state=insertQueue({items:queueRef.current,index:activeQueueIndex.current},action.track,index);player.insert(sourceFor(action.track),index);persistQueue(state.items,state.index);}} setQueueRevision(v=>v+1);setCanUndoQueue(queueUndo.current.length>0); };
+  const saveQueuePlaylist = async (name: string) => {
+    if(!session || !name.trim() || !queueRef.current.length) return;
+    const base = api ? await api.createPlaylist(name.trim()) : { id: randomUUID(), name:name.trim(), trackIds:[], updatedAt:new Date().toISOString() };
+    const result = { ...base, trackIds:[...new Set(queueRef.current.map(t=>t.id))] };
+    const saved=api?await api.savePlaylist(result):result;setLibrary(v=>({...v,playlists:[...v.playlists,saved]}));setNotice('Очередь сохранена в плейлист. Повторяющиеся треки включены один раз.');
+  };
+  const exportBackup = async (includeAudio: boolean) => {
+    if(!session || !localMode || importLock.current) throw new Error('Резервные копии доступны для локальной библиотеки.');
+    setLibraryWorking(true);importLock.current=true;
+    try { await sync(); const file=await createBackup(libraryRef.current,await storage.downloads(session),localState.current,includeAudio); const sharing=await import('expo-sharing');if(await sharing.isAvailableAsync())await sharing.shareAsync(file.uri,{mimeType:'application/zip',dialogTitle:'Сохранить резервную копию Auralis',UTI:'public.zip-archive'});else throw new Error('На устройстве недоступно сохранение через системное меню.');setNotice('Резервная копия подготовлена. Сохраните файл вне приложения.'); } finally {importLock.current=false;setLibraryWorking(false);}
+  };
+  const chooseBackup = async () => { if(!session || !localMode)throw new Error('Перейдите в локальную библиотеку.');const picked=await DocumentPicker.getDocumentAsync({type:'*/*',copyToCacheDirectory:true});if(!picked.canceled)setBackupPreview(await inspectBackup(new File(picked.assets[0].uri),libraryRef.current)); };
+  const restoreBackup = async (replace: boolean) => {
+    if(!session || !localMode || !backupPreview || importLock.current)return;
+    setLibraryWorking(true);importLock.current=true;
+    try {
+      await recordCurrent();
+      const assets=await extractBackup(backupPreview,storage.restoredDirectory(session));
+      const restored=mergeBackup(libraryRef.current,await storage.downloads(session),localState.current,backupPreview.manifest,assets,replace,randomUUID);
+      storage.commitRestore(session,restored.library,restored.downloads,restored.state);player.pause();player.clear();activeTrack.current=null;queueRef.current=[];setCurrent(null);setQueue([]);queueUndo.current=[];setCanUndoQueue(false);localState.current=restored.state;setLibrary(restored.library);setDownloads(restored.downloads);setTheme(normalizeTheme(restored.state.theme)||theme);setVisuals(normalizeVisualPreferences(restored.state.visuals));setExperience({...defaultExperience,...restored.state.experience as Experience});setAudioPreferences(normalizeAudioPreferences(restored.state.audioPreferences));restoredSession.current='';setRemotePlayback(restored.state.playback as Playback);setBackupPreview(null);setNotice(`Восстановлено: ${restored.library.tracks.length} треков. Отсутствующие аудиофайлы можно добавить позже.`);
+    } finally {importLock.current=false;setLibraryWorking(false);}
+  };
+  const previewTransferredBackup=async(file:File)=>{setBackupPreview(await inspectBackup(file,libraryRef.current));};
+  const createTransferArchive=async(ids:Set<string>,playlistIds:Set<string>)=>{if(!session||!localMode||importLock.current)throw new Error('Дождитесь завершения импорта и используйте локальную библиотеку.');for(const id of ids)if(!downloads.some(item=>item.track.id===id&&storage.exists(item.uri)))throw new Error('Некоторые выбранные треки отсутствуют в памяти телефона. Добавьте их заново.');importLock.current=true;try{return await createBackup(libraryRef.current,await storage.downloads(session),localState.current,true,ids,playlistIds);}finally{importLock.current=false;}};
+  const effectiveExperience=useMemo(()=>({...experience,reducedMotion:experience.reducedMotion||systemReducedMotion}),[experience,systemReducedMotion]);
+  return { widgetCommand, previewTransferredBackup, createTransferArchive, audioPreferences, saveAudioPreferences, analyzeLibrary, analysisProgress, stopAnalysis:()=>{analysisActive.current=false;}, exportBackup, chooseBackup, restoreBackup, backupPreview, setBackupPreview, libraryWorking, queueTrack, moveQueueItem, removeQueueItem, undoQueue, queueRevision, canUndoQueue, saveQueuePlaylist, updateLocalMetadata, pickTrackCover, currentArtwork, setSleepTimer, sleepRemaining, session, localMode, enterLocal: () => activate(localSession), importMusic, importing, removeLocalTrack, hydrated, library, downloads, theme, visuals, experience:effectiveExperience, shuffleEnabled, shuffleQueue, setVisualPreferences, setExperiencePreferences, accent: themes[theme].accent, tint: themes[theme].tint, busy, online, notice, setNotice, activate, refresh, current, queue, status, play, next, togglePlayback, seek, favorite, download, removeDownload, downloading, waveEntries, startWave, remotePlayback, resume, sync, setColorTheme, savePlaylist, createPlaylist, deletePlaylist, savePreferences, feedback, clearHistory, logout, run, setLoop, setRepeat, setRate, setVolume };
 }
 
 type Store = ReturnType<typeof useAuralisStore>;

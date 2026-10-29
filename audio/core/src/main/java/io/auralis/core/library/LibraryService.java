@@ -13,6 +13,9 @@ import java.time.Instant;
 import java.util.*;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
+import com.fasterxml.jackson.databind.*;
+import com.fasterxml.jackson.databind.node.*;
+import io.auralis.core.backup.LibraryArchive;
 
 /** Local persistent library. Public methods serialize SQLite access; callers own background execution. */
 public final class LibraryService implements AutoCloseable {
@@ -38,6 +41,7 @@ public final class LibraryService implements AutoCloseable {
                 statement.execute("PRAGMA foreign_keys=ON"); statement.execute("PRAGMA journal_mode=WAL"); statement.execute("PRAGMA busy_timeout=5000");
             }
             migrate();
+            try(Statement statement=db.createStatement()) { statement.execute("CREATE TABLE IF NOT EXISTS track_extras(track_id TEXT PRIMARY KEY REFERENCES tracks(id) ON DELETE CASCADE, track_number INTEGER NOT NULL DEFAULT 0, disc_number INTEGER NOT NULL DEFAULT 0, loudness_lufs REAL, true_peak_db REAL)"); }
         } catch (SQLException e) { throw new IOException("Не удалось открыть библиотеку SQLite", e); }
     }
     public Path dataDirectory() { return dataDirectory; }
@@ -67,6 +71,44 @@ public final class LibraryService implements AutoCloseable {
     }
     public synchronized List<Track> tracks() { return queryTracks("SELECT * FROM tracks ORDER BY imported_at DESC, title", List.of()); }
     public synchronized Optional<Track> track(String id) { return queryTracks("SELECT * FROM tracks WHERE id=?", List.of(id)).stream().findFirst(); }
+    public synchronized Optional<Track> trackByHash(String hash) { return queryTracks("SELECT * FROM tracks WHERE content_hash=?", List.of(hash)).stream().findFirst(); }
+    public synchronized String contentHash(String id) { try(PreparedStatement p=db.prepareStatement("SELECT content_hash FROM tracks WHERE id=?")){p.setString(1,id);try(ResultSet rs=p.executeQuery()){if(rs.next())return rs.getString(1);throw new IllegalArgumentException("Трек не найден");}}catch(SQLException e){throw failure(e);} }
+    public synchronized void refreshFingerprint(String id)throws IOException{Track track=track(id).orElseThrow();execute("UPDATE tracks SET content_hash=? WHERE id=?",LibraryArchive.hash(track.path()),id);}
+    @FunctionalInterface public interface Mutation { void run()throws Exception; }
+    public synchronized void transaction(Mutation action)throws Exception{if(!db.getAutoCommit())throw new IllegalStateException("Nested transaction");db.setAutoCommit(false);try{action.run();db.commit();}catch(Exception e){db.rollback();throw e;}finally{db.setAutoCommit(true);}}
+    public record TrackExtras(int trackNumber,int discNumber,Double loudnessLufs,Double truePeakDb){}
+    public synchronized TrackExtras extras(String id){try(PreparedStatement p=db.prepareStatement("SELECT * FROM track_extras WHERE track_id=?")){p.setString(1,id);try(ResultSet rs=p.executeQuery()){return rs.next()?new TrackExtras(rs.getInt("track_number"),rs.getInt("disc_number"),(Double)rs.getObject("loudness_lufs"),(Double)rs.getObject("true_peak_db")):new TrackExtras(0,0,null,null);}}catch(SQLException e){throw failure(e);}}
+    public synchronized void setTrackNumbers(String id,int track,int disc){if(track<0||track>9999||disc<0||disc>999)throw new IllegalArgumentException("Некорректный номер трека/диска");execute("INSERT INTO track_extras(track_id,track_number,disc_number) VALUES(?,?,?) ON CONFLICT(track_id) DO UPDATE SET track_number=excluded.track_number,disc_number=excluded.disc_number",id,track,disc);}
+    public synchronized void setLoudness(String id,double lufs,double peak){if(!Double.isFinite(lufs)||!Double.isFinite(peak)||lufs>10||lufs< -120||peak>30||peak< -120)throw new IllegalArgumentException("Некорректный анализ громкости");execute("INSERT INTO track_extras(track_id,loudness_lufs,true_peak_db) VALUES(?,?,?) ON CONFLICT(track_id) DO UPDATE SET loudness_lufs=excluded.loudness_lufs,true_peak_db=excluded.true_peak_db",id,lufs,peak);}
+    public synchronized void setTrackArtwork(String id,Path artwork)throws IOException{if(!validArtwork(artwork.toString()))throw new IOException("Нужна корректная обложка PNG или JPEG");Path destination=dataDirectory.resolve("artwork").resolve("custom-"+UUID.randomUUID()+".png");Files.createDirectories(destination.getParent());var image=javax.imageio.ImageIO.read(artwork.toFile());if(image==null||!javax.imageio.ImageIO.write(image,"png",destination.toFile()))throw new IOException("Не удалось прочитать обложку");execute("UPDATE tracks SET artwork=? WHERE id=?",destination.toString(),id);}
+    public synchronized Map<String,String> settingsSnapshot(){Map<String,String> result=new LinkedHashMap<>();try(Statement s=db.createStatement();ResultSet rs=s.executeQuery("SELECT key,value FROM settings")){while(rs.next())result.put(rs.getString(1),rs.getString(2));}catch(SQLException e){throw failure(e);}return result;}
+    public synchronized ObjectNode backupSnapshot(){
+        var json=LibraryArchive.JSON;ObjectNode root=json.createObjectNode();ArrayNode tracks=root.putArray("tracks");
+        for(Track track:tracks()){ObjectNode t=tracks.addObject();t.put("id",track.id()).put("contentHash",contentHash(track.id())).put("title",track.title()).put("artist",track.artist()).put("album",track.album()).put("genre",track.genre()).put("durationSeconds",track.durationSeconds()).put("originalPath",track.path().toString()).put("originalArtwork",track.artworkPath());var extra=extras(track.id());t.put("trackNumber",extra.trackNumber()).put("discNumber",extra.discNumber());if(extra.loudnessLufs()!=null)t.put("loudnessLufs",extra.loudnessLufs());if(extra.truePeakDb()!=null)t.put("truePeakDb",extra.truePeakDb());}
+        ArrayNode favorites=root.putArray("favorites");favorites().forEach(t->favorites.add(t.id()));ArrayNode playlists=root.putArray("playlists");for(Playlist p:playlists()){ObjectNode node=playlists.addObject().put("id",p.id()).put("name",p.name()).put("updatedAt",Instant.now().toString());ArrayNode ids=node.putArray("trackIds");p.tracks().forEach(t->ids.add(t.id()));}
+        ArrayNode history=root.putArray("history");for(HistoryEntry h:history(100000))history.addObject().put("eventId",h.id()+"/"+h.playedAt()).put("trackId",h.track().id()).put("playedSeconds",h.listenedSeconds()).put("skipped",h.skipped()).put("completed",!h.skipped()&&h.listenedSeconds()>=h.track().durationSeconds()*.9).put("playedAt",h.playedAt().toString());
+        ObjectNode settings=root.putObject("settings");settingsSnapshot().forEach((k,v)->{if(LibraryArchive.portableSetting(k))settings.put(k,v);});
+        try{root.set("playback",json.readTree(setting("playback.queue","{}")));}catch(Exception ignored){root.putObject("playback");}
+        ObjectNode feedback=root.putObject("feedback");feedback().forEach(f->feedback.put(f.trackId(),f.reaction().name()));return root;
+    }
+    public synchronized void restoreBackup(ObjectNode root,Map<String,Path> audioFiles,Map<String,Path> covers,boolean replace)throws IOException{
+        LibraryArchive.validate(root);Map<String,String> mapped=new LinkedHashMap<>();
+        try{db.setAutoCommit(false);try{
+            if(replace){for(String key:settingsSnapshot().keySet())if(LibraryArchive.portableSetting(key))execute("DELETE FROM settings WHERE key=?",key);execute("DELETE FROM playlists");execute("DELETE FROM tracks");execute("DELETE FROM excluded_artists");}
+            for(JsonNode t:root.path("tracks")){String oldId=t.path("id").asText(),hash=t.path("contentHash").asText();Optional<Track> known=trackByHash(hash);String id=known.map(Track::id).orElseGet(()->track(oldId).isEmpty()?oldId:UUID.randomUUID().toString());mapped.put(oldId,id);if(known.isPresent()&&!replace){Track existing=known.get();if(!Files.isRegularFile(existing.path())&&audioFiles.containsKey(oldId))execute("UPDATE tracks SET path=? WHERE id=?",audioFiles.get(oldId).toAbsolutePath().toString(),id);if(existing.artworkPath().isBlank()&&covers.containsKey(oldId))execute("UPDATE tracks SET artwork=? WHERE id=?",covers.get(oldId).toString(),id);continue;}
+                Path source=audioFiles.get(oldId);if(source==null){try{Path original=Path.of(t.path("originalPath").asText());if(Files.isRegularFile(original)&&LibraryArchive.hash(original).equals(hash))source=original;}catch(InvalidPathException ignored){}}
+                if(source==null)source=dataDirectory.resolve("restored").resolve(hash+".missing");
+                Path cover=covers.get(oldId);execute("INSERT INTO tracks(id,title,artist,album,genre,path,duration,artwork,content_hash,imported_at) VALUES(?,?,?,?,?,?,?,?,?,?) ON CONFLICT(id) DO UPDATE SET title=excluded.title,artist=excluded.artist,album=excluded.album,genre=excluded.genre,path=excluded.path,duration=excluded.duration,artwork=excluded.artwork",id,t.path("title").asText(),t.path("artist").asText(),t.path("album").asText(),t.path("genre").asText(),source.toAbsolutePath().toString(),t.path("durationSeconds").asDouble(),cover==null?"":cover.toString(),hash,Instant.now().toString());setTrackNumbers(id,t.path("trackNumber").asInt(),t.path("discNumber").asInt());if(t.hasNonNull("loudnessLufs")&&t.hasNonNull("truePeakDb"))setLoudness(id,t.path("loudnessLufs").asDouble(),t.path("truePeakDb").asDouble());
+            }
+            for(JsonNode t:root.path("favorites"))setFavorite(mapped.get(t.asText()),true);
+            for(JsonNode p:root.path("playlists")){String id=p.path("id").asText();List<String> ids=new ArrayList<>();for(JsonNode t:p.path("trackIds")){String mappedId=mapped.get(t.asText());if(!ids.contains(mappedId))ids.add(mappedId);}if(playlists().stream().anyMatch(existing->existing.name().equals(p.path("name").asText())&&existing.tracks().stream().map(Track::id).toList().equals(ids)))continue;Optional<Playlist> known=playlist(id);if(known.isPresent()){if(known.get().name().equals(p.path("name").asText())&&known.get().tracks().stream().map(Track::id).toList().equals(ids))continue;id=UUID.randomUUID().toString();}execute("INSERT INTO playlists(id,name,created_at) VALUES(?,?,?)",id,p.path("name").asText(),Instant.now().toString());for(String t:ids)addToPlaylist(id,t);}
+            for(JsonNode h:root.path("history")){String id=mapped.get(h.path("trackId").asText());String at=Instant.parse(h.path("playedAt").asText()).toString();double seconds=h.path("playedSeconds").asDouble();if(!exists("SELECT 1 FROM history WHERE track_id=? AND played_at=? AND listened_seconds=? AND skipped=?",id,at,seconds,h.path("skipped").asBoolean()?1:0))recordListenAt(id,seconds,h.path("skipped").asBoolean(),Instant.parse(at));}
+            root.path("settings").properties().forEach(entry->{if(LibraryArchive.portableSetting(entry.getKey())&&(replace||setting(entry.getKey(),"").isEmpty()))setSetting(entry.getKey(),entry.getValue().asText());});
+            ObjectNode playback=(ObjectNode)(root.path("playback").isObject()?root.path("playback").deepCopy():LibraryArchive.JSON.createObjectNode());if(playback.has("trackId"))playback.put("trackId",mapped.getOrDefault(playback.path("trackId").asText(),""));if(playback.path("queue").isArray()){ArrayNode ids=playback.putArray("queue");root.path("playback").path("queue").forEach(t->{if(mapped.containsKey(t.asText()))ids.add(mapped.get(t.asText()));});}if(replace||setting("playback.queue","").isEmpty())setSetting("playback.queue",playback.toString());
+            for(var entry:root.path("feedback").properties())if(mapped.containsKey(entry.getKey()))try{setReaction(mapped.get(entry.getKey()),Reaction.valueOf(entry.getValue().asText()));}catch(IllegalArgumentException ignored){}
+            db.commit();
+        }catch(Exception e){db.rollback();throw e;}finally{db.setAutoCommit(true);}}catch(Exception e){throw new IOException("Восстановление отменено; база не изменена: "+e.getMessage(),e);}
+    }
     /** Catalog labels only: server synchronization never rewrites local audio tags. */
     public synchronized void updateMetadata(String trackId, String title, String artist, String album, String genre) {
         if (track(trackId).isEmpty()) throw new IllegalArgumentException("Трек не найден");

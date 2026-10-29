@@ -1,3 +1,4 @@
+import { graphicsBudgetTelemetry } from '../visuals/budget';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
@@ -32,7 +33,7 @@ export function NetworkBackdrop({ accent, animate, quality }: { accent: string; 
         const now = Date.now();
         if (config.animate && now-last < 1000/15) { frame.current = requestAnimationFrame(render); return; }
         if (last && config.animate) clock += Math.min(.08, (now-last)/1000); last = now;
-        const width = Math.max(1, config.size.width), height = Math.max(1, config.size.height), count = config.quality === 'Eco' ? 22 : config.quality === 'Balanced' ? 36 : 50;
+        const width = Math.max(1, config.size.width), height = Math.max(1, config.size.height), count = Math.max(12,Math.round((config.quality === 'Eco' ? 22 : config.quality === 'Balanced' ? 36 : 50)*[1,.8,.6,.4][graphicsBudgetTelemetry.level]));
         const points: number[] = [], lines: number[] = [], xy: [number, number][] = [];
         for (let i=0;i<count;i++) {
           const x=(((i*.61803398875)%1)*width+Math.sin(clock*.055+i*1.7)*19+width)%width;

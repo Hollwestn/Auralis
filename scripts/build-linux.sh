@@ -6,7 +6,7 @@ case "$kind" in deb|rpm|app-image) ;; *) echo 'Usage: bash scripts/build-linux.s
 [[ $(uname -s) == Linux ]] || { echo 'Linux packages must be built on Linux.' >&2; exit 2; }
 [[ $(uname -m) == x86_64 ]] || { echo 'This packaging script currently targets Linux x86_64.' >&2; exit 2; }
 for tool in java mvn jpackage ffmpeg ffprobe; do command -v "$tool" >/dev/null || { echo "Missing: $tool" >&2; exit 2; }; done
-version=0.8.0
+version=0.9.0
 cd -- "$root"
 tests=()
 [[ ${2:-} != --skip-tests ]] || tests+=(-DskipTests)
@@ -23,7 +23,7 @@ args=(--type "$kind" --name Auralis --app-version "$version" --vendor Auralis --
  --input "$staging/input" --main-jar auralis-desktop-0.1.0-SNAPSHOT.jar --main-class io.auralis.desktop.Launcher
  --dest "$staging/output" --icon "$root/assets/brand/auralis-symbol/png/auralis-256.png"
  --java-options '--enable-native-access=ALL-UNNAMED' --java-options '-Dfile.encoding=UTF-8' --java-options '-Dauralis.home=$APPDIR'
- --add-modules java.base,java.desktop,java.logging,java.management,java.naming,java.net.http,java.prefs,java.scripting,java.sql,java.xml,jdk.charsets,jdk.crypto.ec,jdk.unsupported,jdk.zipfs)
+ --add-modules java.base,java.desktop,java.logging,java.management,java.naming,java.net.http,java.prefs,java.scripting,java.sql,java.xml,jdk.charsets,jdk.crypto.ec,jdk.unsupported,jdk.zipfs,jdk.httpserver)
 if [[ $kind != app-image ]]; then
  args+=(--linux-package-name auralis --linux-shortcut --linux-menu-group AudioVideo --linux-app-category sound)
  if [[ $kind == deb ]]; then

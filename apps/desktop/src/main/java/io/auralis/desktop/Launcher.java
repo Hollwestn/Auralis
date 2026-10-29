@@ -2,6 +2,7 @@ package io.auralis.desktop;
 public final class Launcher {
     private Launcher() {}
     public static void main(String[] args) {
+        io.auralis.core.util.NetworkRuntime.prepare();
         if(java.util.Arrays.asList(args).contains("--migrate-data")){
             try{System.out.println("AURALIS_DATA_MIGRATION_OK "+AuralisApp.prepareDataDirectory());}
             catch(Exception error){System.err.println("Перенос данных остановлен: "+error.getMessage());System.exit(1);}
