@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateManifest, mergeBackup } from '../src/core/backupFormat.ts';
+import { validateManifest, mergeBackup, backupConflicts } from '../src/core/backupFormat.ts';
 import { moveQueue, removeQueue, insertQueue } from '../src/core/queue.ts';
 const hash='a'.repeat(64), entry={id:'desktop-uuid',contentHash:hash,title:'A',artist:'B',album:'C',genre:'D',durationSeconds:12};
 const fixture=()=>({format:'auralis.backup',version:1,createdAt:'2026-10-28T00:00:00Z',tracks:[entry],favorites:['desktop-uuid'],playlists:[{id:'p',name:'My list',trackIds:['desktop-uuid']}],history:[{trackId:'desktop-uuid',playedSeconds:4,playedAt:'2026-10-28T00:00:00Z'}],settings:{theme:'DEEP_VIOLET',serverToken:'secret'},playback:{trackId:'desktop-uuid',queue:['desktop-uuid','desktop-uuid'],queueIndex:1,positionSeconds:3}});
@@ -14,4 +14,9 @@ test('backup rejects invalid references, unsafe asset paths and newer formats be
 });
 test('queue transformations preserve the selected occurrence even when tracks are duplicated',()=>{
  const s={items:['a','b','a','c'],index:2};assert.deepEqual(moveQueue(s,0,3),{items:['b','a','c','a'],index:1});assert.deepEqual(moveQueue(s,2,0),{items:['a','a','b','c'],index:0});assert.deepEqual(removeQueue(s,0),{items:['b','a','c'],index:1});assert.deepEqual(insertQueue(s,'x',1),{items:['a','x','b','a','c'],index:3});assert.deepEqual(removeQueue({items:['a'],index:0},0),{items:[],index:-1});assert.throws(()=>moveQueue(s,10,0));
+});
+
+test('conflicting metadata and playlist changes are shown before applying a transfer',()=>{
+ const manifest=validateManifest(fixture()),local=mergeBackup(empty(),[],{},manifest,{},true,()=> 'uuid').library;local.tracks[0].title='My correction';local.playlists[0].trackIds=[];
+ const differences=backupConflicts(local,manifest);assert.ok(differences.some(d=>d.local.includes('My correction')&&d.incoming==='A'));assert.ok(differences.some(d=>d.key.startsWith('playlist:')));assert.equal(local.tracks[0].title,'My correction');
 });

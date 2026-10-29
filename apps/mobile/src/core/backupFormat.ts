@@ -6,6 +6,22 @@ export type BackupTrack = { id: string; contentHash: string; title: string; arti
 export type BackupManifest = { format: 'auralis.backup'; version: 1; createdAt: string; tracks: BackupTrack[]; favorites: string[]; playlists: CachedLibrary['playlists']; history: CachedLibrary['history']; settings: Record<string, unknown>; playback: Playback; feedback?: Record<string, string> };
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 export const portableSetting = (key: string) => /^(theme|visuals|experience|audioPreferences|genres|artists|reducedMotion|advanced|language|volume|preferences\.(genres|artists)|visual\.[A-Za-z]+|background\.enabled|animations\.enabled|eq\.((saved\.)?[0-9]+|enabled)|audio\.[A-Za-z]+|albumTransition\.[a-f0-9]+)$/.test(key);
+export function backupConflicts(library: CachedLibrary, manifest: BackupManifest) {
+  const differences: { key: string; local: string; incoming: string }[] = [];
+  const byHash=new Map(library.tracks.map(t=>[t.contentHash || t.id.replace(/^local-/,''),t]));
+  for(const track of manifest.tracks){
+    const known=byHash.get(track.contentHash);if(!known)continue;
+    for(const [field,label] of [['title','Название'],['artist','Исполнитель'],['album','Альбом'],['genre','Жанр'],['trackNumber','Номер трека'],['discNumber','Номер диска']] as const)
+      if((field==='trackNumber'||field==='discNumber')?Number(known[field]||0)!==Number(track[field]||0):String(known[field]??'')!==String(track[field]??''))differences.push({key:`${track.id}:${field}`,local:`${known.title} · ${label}: ${known[field]??'—'}`,incoming:String(track[field]??'—')});
+  }
+  const hashes=new Map(manifest.tracks.map(t=>[t.id,t.contentHash]));
+  for(const playlist of manifest.playlists){
+    const known=library.playlists.find(p=>p.id===playlist.id || p.name===playlist.name);if(!known)continue;
+    const ids=playlist.trackIds.map(id=>byHash.get(hashes.get(id)||'')?.id || `local-${hashes.get(id)}`);
+    if(known.name!==playlist.name || JSON.stringify(known.trackIds)!==JSON.stringify(ids))differences.push({key:`playlist:${playlist.id}`,local:`Плейлист «${known.name}»: ${known.trackIds.length} треков`,incoming:`«${playlist.name}»: ${ids.length} треков; при объединении будет отдельным плейлистом`});
+  }
+  return differences;
+}
 export function validateManifest(value: unknown): BackupManifest {
   if (!record(value) || value.format !== 'auralis.backup' || value.version !== 1) throw new Error('Неизвестный формат резервной копии.');
   for (const field of ['tracks', 'favorites', 'playlists', 'history']) if (!Array.isArray(value[field]) || value[field].length > 100000) throw new Error(`Повреждён раздел ${field}.`);

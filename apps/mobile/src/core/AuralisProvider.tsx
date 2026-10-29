@@ -449,11 +449,11 @@ function useAuralisStore() {
           try { metadata = await readLocalMetadata(destination.uri, storage.coverTarget(session, id).uri); metadataVersion = 1; } catch { /* Some system decoders cannot read all tag containers. */ }
           if (sessionRef.current !== session) { destination.delete(); break; }
           const restored=libraryRef.current.tracks.find(track=>track.id===id && track.missing);
-          const track: Track = { ...(restored || {}), id, title: info.title, artist: info.artist, album: '', genre: '', durationSeconds: 0, sizeBytes: destination.size, mimeType: info.mimeType, source: 'LOCAL', coverUrl: null, ...metadata, ...(restored ? { title:restored.title, artist:restored.artist, album:restored.album, genre:restored.genre, coverUrl:restored.coverUrl || null } : {}), contentHash:id.slice(6), missing:false, importedAt: new Date().toISOString() };
+          const track: Track = { ...(restored || {}), id, title: info.title, artist: info.artist, album: '', genre: '', durationSeconds: 0, sizeBytes: destination.size, mimeType: info.mimeType, source: 'LOCAL', coverUrl: null, ...metadata, ...(restored ? { title:restored.title, artist:restored.artist, album:restored.album, genre:restored.genre, coverUrl:restored.coverUrl || null,trackNumber:restored.trackNumber,discNumber:restored.discNumber,loudnessLufs:restored.loudnessLufs,truePeakDb:restored.truePeakDb,samplePeakDb:restored.samplePeakDb } : {}), contentHash:id.slice(6), missing:false, importedAt: new Date().toISOString() };
           const item: OfflineTrack = { track, uri: destination.uri, downloadedAt: new Date().toISOString(), metadataVersion };
           const files = [...(await storage.downloads(session)).filter(value => value.track.id !== id), item];
           storage.saveDownloads(session, files); setDownloads(files);
-          setLibrary(value => ({ ...value, tracks: [...value.tracks.filter(t => t.id !== id), track] })); added++; destination = null;
+          setLibrary(value => ({ ...value, tracks: [...value.tracks.filter(t => t.id !== id), track],favorites:value.favorites.map(t=>t.id===id?track:t) })); added++; destination = null;
         } catch (error) { if (destination?.exists) destination.delete(); failures.push(error instanceof Error ? error.message : `Не удалось добавить ${asset.name}`); }
         finally { // Picker copies are temporary; never delete the user's original document.
           const cached = new File(asset.uri); if (cached.uri.startsWith(storage.cacheRoot()) && cached.exists) cached.delete();
@@ -583,4 +583,3 @@ type Store = ReturnType<typeof useAuralisStore>;
 const Context = createContext<Store | null>(null);
 export function AuralisProvider({ children }: { children: React.ReactNode }) { return <Context.Provider value={useAuralisStore()}>{children}</Context.Provider>; }
 export function useAuralis() { const value = useContext(Context); if (!value) throw new Error('Missing AuralisProvider'); return value; }
-

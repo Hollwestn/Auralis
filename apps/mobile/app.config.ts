@@ -14,7 +14,7 @@ const config: ExpoConfig = {
     },
     infoPlist: {
       NSLocalNetworkUsageDescription: 'Auralis обменивается выбранной музыкой с вашим компьютером и подключается к вашему серверу в локальной сети.',
-      NSAppTransportSecurity: localHttp ? { NSAllowsArbitraryLoads: true, NSAllowsLocalNetworking: true } : { NSAllowsLocalNetworking: !release.store },
+      NSAppTransportSecurity: localHttp ? { NSAllowsArbitraryLoads: true, NSAllowsLocalNetworking: true } : { NSAllowsLocalNetworking: true },
       ITSAppUsesNonExemptEncryption: false,
     },
   },
