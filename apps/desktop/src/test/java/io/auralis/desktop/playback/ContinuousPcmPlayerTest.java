@@ -13,6 +13,11 @@ class ContinuousPcmPlayerTest {
  @TempDir Path root;
  @Test void oneOutputClockJoinsFilesAtExactPcmBoundary()throws Exception{assertFrames(0,96000);}
  @Test void crossfadeOverlapsPcmAndNeverExceedsSampleRange()throws Exception{assertFrames(.2,86400);}
+ @Test void cacheBudgetEvictsOnlyInactiveGeneratedPcmFiles()throws Exception{
+  Path active=root.resolve("pcm48-"+UUID.randomUUID()+".wav"),old=root.resolve("pcm48-"+UUID.randomUUID()+".wav"),original=root.resolve("my-original.wav");
+  Files.write(active,new byte[80]);Files.write(old,new byte[80]);Files.write(original,new byte[80]);Files.setLastModifiedTime(old,java.nio.file.attribute.FileTime.fromMillis(1));
+  ContinuousPcmPlayer.trimCache(root,Set.of(active),100);assertTrue(Files.exists(active));assertFalse(Files.exists(old));assertTrue(Files.exists(original));
+ }
  private void assertFrames(double fade,long expected)throws Exception{
   var ffmpeg=new FfmpegService();Assumptions.assumeTrue(ffmpeg.available());List<Track> tracks=new ArrayList<>();for(int i=0;i<2;i++){Path path=root.resolve("tone"+i+".wav");FfmpegService.run(List.of(ffmpeg.executable(),"-nostdin","-v","error","-f","lavfi","-i","sine=frequency="+(440+i*110)+":duration=1:sample_rate=48000","-ac","2","-y",path.toString()),Duration.ofSeconds(20));tracks.add(new Track("t"+i,"Tone","A","Album","",path,1,""));}
   AtomicLong frames=new AtomicLong();AtomicInteger opens=new AtomicInteger();List<String> transitions=new CopyOnWriteArrayList<>();CountDownLatch finished=new CountDownLatch(1);AtomicReference<String> error=new AtomicReference<>();
@@ -22,3 +27,4 @@ class ContinuousPcmPlayerTest {
   }
  }
 }
+

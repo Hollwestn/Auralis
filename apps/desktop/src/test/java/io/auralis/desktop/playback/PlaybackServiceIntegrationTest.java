@@ -70,6 +70,22 @@ class PlaybackServiceIntegrationTest {
         fx(() -> { service.setQueue(List.of(), 0); return null; });
         assertEquals(MediaPlayer.Status.DISPOSED, fx(service::nativeStatus)); assertNull(fx(service::current)); assertFalse(fx(() -> service.readyProperty().get()));
     }
+    @Test void queueEditsPreserveTheSelectedDuplicateAndDecoderPosition() throws Exception {
+        Track first=fixture("editable",".wav"),second=new Track("editable-second","Second","A","","",first.path(),12,"");
+        fx(()->{service.restoreQueue(List.of(first,second,first),2,3,true);return null;});await(()->service.readyProperty().get()&&service.playingProperty().get());
+        fx(()->{service.moveQueueItem(0,2);return null;});assertEquals(1,fx(service::queueIndex));assertTrue(fx(()->service.positionProperty().get())>=2.8);
+        fx(()->{service.removeQueueItem(0);return null;});assertEquals(0,fx(service::queueIndex));assertTrue(fx(()->service.positionProperty().get())>=2.8);
+        fx(()->{service.undoQueue();return null;});assertEquals(1,fx(service::queueIndex));assertEquals(List.of(second,first,first),fx(service::queue));assertTrue(fx(()->service.positionProperty().get())>=2.8);
+        fx(()->{service.enqueue(second);return null;});assertFalse(fx(service::canUndoQueue));assertNull(mediaError.get());
+    }
+    @Test void continuousPcmClockSupportsRealOutputPauseSeekAndQueueChanges() throws Exception {
+        Track first=fixture("continuous",".wav"),second=new Track("continuous-second","Second","A","","",first.path(),12,"");AtomicInteger frames=new AtomicInteger();
+        fx(()->{service.setSpectrumListener((t,d,m,p)->frames.incrementAndGet());service.configureContinuous(true,0,Map.of(first.id(),-6.0),Set.of());service.restoreQueue(List.of(first,second),0,1,true);return null;});
+        await(()->service.readyProperty().get()&&service.playingProperty().get()&&service.positionProperty().get()>=.9);await(()->frames.get()>0);
+        fx(()->{service.removeQueueItem(1);service.pause();return null;});await(()->!service.playingProperty().get());assertEquals(1,fx(service::queue).size());assertTrue(fx(()->service.readyProperty().get()));
+        fx(()->{service.seek(4);service.toggle();return null;});await(()->service.readyProperty().get()&&service.playingProperty().get()&&service.positionProperty().get()>=3.9);
+        fx(()->{service.next();return null;});await(()->!service.playingProperty().get());assertNull(mediaError.get());
+    }
     @Test void queueWrapShuffleAndDisposalHaveStableBoundaries() throws Exception {
         Track first = fixture("queue", ".wav");
         Track second = new Track("second", "Second", "A", "", "", first.path(), 12, ""), third = new Track("third", "Third", "A", "", "", first.path(), 12, "");
@@ -156,3 +172,4 @@ class PlaybackServiceIntegrationTest {
         return result.get(10, TimeUnit.SECONDS);
     }
 }
+

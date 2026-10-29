@@ -19,7 +19,7 @@ final class AuralisSpectrumTap {
     if item === player.currentItem && processor?.isTapInstalled == true { return }
     invalidate()
     item = player.currentItem
-    let tap = AudioTapProcessor(player: player)
+    guard let tap = AudioTapProcessor(player: player) else { return }
     processor = tap
     tap.auralisGain = Float(gain)
     tap.sampleBufferCallback = { [weak self, weak tap] buffer, frames, _ in
@@ -78,3 +78,4 @@ final class AuralisSpectrumTap {
   }
   deinit { invalidate() }
 }
+

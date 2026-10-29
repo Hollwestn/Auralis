@@ -11,7 +11,40 @@ import java.nio.ByteOrder
 import kotlin.math.*
 
 class AuralisPcmTapTest {
-  @After fun resetBus() { AuralisPcmBus.enabled = false; AuralisPcmBus.onFrame = null }
+  @After fun resetBus() { AuralisPcmBus.enabled = false; AuralisPcmBus.onFrame = null; AuralisPcmBus.gain = 1.0 }
+
+  @Test fun normalizationAttenuatesPcmAndLimitsBoostInsteadOfWrapping() {
+    var gain=0.5
+    val tap=AuralisPcmTap({gain},false)
+    tap.configure(AudioFormat(48000,1,C.ENCODING_PCM_16BIT));tap.flush()
+    val input=ByteBuffer.allocateDirect(4096).order(ByteOrder.nativeOrder())
+    repeat(2048){input.putShort(20000.toShort())};input.flip();tap.queueInput(input)
+    val attenuated=tap.output.order(ByteOrder.nativeOrder())
+    while(attenuated.hasRemaining())assertEquals(10000,attenuated.short.toInt())
+    gain=3.98
+    val boosted=ByteBuffer.allocateDirect(48000).order(ByteOrder.nativeOrder())
+    repeat(24000){boosted.putShort(30000.toShort())};boosted.flip();tap.queueInput(boosted)
+    val output=tap.output.order(ByteOrder.nativeOrder());var last=0
+    while(output.hasRemaining()){last=output.short.toInt();assertTrue(last in 15000..32767)}
+    assertTrue(last>=32760)
+  }
+
+  @Test fun floatingPointStereoGainWorksWhenVisualizationIsOff() {
+    val tap=AuralisPcmTap({0.25},false)
+    tap.configure(AudioFormat(48000,2,C.ENCODING_PCM_FLOAT));tap.flush()
+    val input=ByteBuffer.allocateDirect(8192).order(ByteOrder.nativeOrder())
+    repeat(1024){input.putFloat(.8f);input.putFloat(-.4f)};input.flip();tap.queueInput(input)
+    val output=tap.output.order(ByteOrder.nativeOrder())
+    repeat(1024){assertEquals(.2f,output.float,.00001f);assertEquals(-.1f,output.float,.00001f)}
+  }
+
+  @Test fun nativeLoudnessMeterMeasuresGatedMonoAndStereoWithKnownReference() {
+    val mono=AuralisLoudnessMeter(48000,1);val stereo=AuralisLoudnessMeter(48000,2)
+    for(i in 0 until 144000){val value=(.1*sin(2*PI*1000*i/48000)).toFloat();mono.accept(floatArrayOf(value));stereo.accept(floatArrayOf(value,value))}
+    assertEquals(-23.0,mono.result().integratedLufs(),.2)
+    assertEquals(3.0103,stereo.result().integratedLufs()-mono.result().integratedLufs(),.01)
+    assertEquals(-20.0,mono.result().samplePeakDb(),.01)
+  }
 
   @Test fun emptyDrainInputNeverAliasesTheSharedEmptyBufferOrErasesPendingPcm() {
     val tap = AuralisPcmTap()
@@ -67,3 +100,4 @@ class AuralisPcmTapTest {
     tap.queueInput(ByteBuffer.allocateDirect(4096)); assertEquals(1, emissions)
   }
 }
+
