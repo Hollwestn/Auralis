@@ -2,13 +2,10 @@ import Foundation
 import AVFoundation
 
 final class AuralisSleepTimer {
-  var active: Bool { timer != nil }
-  var onStart: (() -> Void)?
   private var timer: DispatchSourceTimer?
   private weak var player: AVPlayer?
   private var originalVolume: Float?
   func set(_ seconds: Double, player: AVPlayer) {
-    if seconds > 0 { onStart?() }
     cancel()
     guard seconds.isFinite, seconds > 0, seconds <= 86400 else { return }
     self.player = player

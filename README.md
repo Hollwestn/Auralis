@@ -9,9 +9,9 @@
 
 Ваша музыка. Ваше пространство. Ваша собственная вселенная.
 
-**Музыкальная платформа для Windows, Linux и Android с личной библиотекой, собственным сервером и графикой, которая слышит звук.**
+**Музыкальная платформа для Windows и Android с личной библиотекой, собственным сервером и графикой, которая слышит звук.**
 
-**Публичный выпуск 0.6.2:** [Windows EXE](https://github.com/Hollwestn/Auralis/releases/download/v0.6.2-preview/Auralis-Setup.exe) · [Android APK — Preview](https://github.com/Hollwestn/Auralis/releases/download/v0.6.2-preview/Auralis-Android-Test.apk) · [Сервер ZIP](https://github.com/Hollwestn/Auralis/releases/download/v0.6.2-preview/Auralis-Server-Internet.zip)
+**Прежний публичный выпуск 0.6.2:** [Windows EXE](https://github.com/Hollwestn/Auralis/releases/download/v0.6.2-preview/Auralis-Setup.exe) · [Android APK — Preview](https://github.com/Hollwestn/Auralis/releases/download/v0.6.2-preview/Auralis-Android-Test.apk) · [Сервер ZIP](https://github.com/Hollwestn/Auralis/releases/download/v0.6.2-preview/Auralis-Server-Internet.zip)
 
 [Что скачать](docs/GITHUB_DOWNLOADS.md) · [Начать слушать](START_HERE.md) · [Без аккаунта](docs/MOBILE_OFFLINE_GUIDE.md) · [Свой сервер](docs/SERVER_INTERNET_GUIDE.md) · [Сборки](https://github.com/Hollwestn/Auralis/releases)
 
@@ -26,11 +26,9 @@
 
 </div>
 
-> **Обновление 0.9.0:** переносимая резервная копия, редактируемая очередь, gapless/crossfade, анализ громкости, редактор метаданных, защищённый обмен по Wi-Fi, автокачество графики и виджет телефона. Дизайн и сцены сохранены. [Как пользоваться](docs/UPDATE_090.md) · [Проверки и установочные файлы](docs/verification/UPDATE_090.md).
+[Возврат к 0.7.0 и проверки](docs/ROLLBACK_070.md).
 
-> **Исходники 0.8.0:** подготовлены Linux x86_64, профили сборки Google Play / RuStore / App Store, политика конфиденциальности и поддержка. [Короткий гайд](docs/RELEASE_GUIDE.md) · [Идеи развития](docs/NEXT_STEPS.md) · [Проверки и ограничения](docs/verification/STORE_LINUX_080.md). Это подготовка к публикации; готовые файлы прежних выпусков ниже имеют собственные номера версий. Подписанный IPA и магазинный AAB ещё не выпущены.
-
-**Локальное обновление 0.7.0:** исправлены обложки, добавлены таймер сна и автоматические подборки. [Отчёт и установка](docs/UPDATE_070.md).
+**Текущая версия проекта — 0.7.0:** исправлены обложки, добавлены таймер сна и автоматические подборки. [Отчёт и установка](docs/UPDATE_070.md).
 
 ## Нажмите Play. Остальное почувствуете.
 
@@ -93,8 +91,6 @@ Auralis соединяет этот визуальный опыт с повсе�
 ## Начать с музыки
 
 **Windows.** Установите сборку из [Releases](https://github.com/Hollwestn/Auralis/releases) либо соберите её из исходников. Выберите музыкальную папку и включите первый трек. Для локального прослушивания сервер не нужен. [Установка и обновление →](docs/WINDOWS_INSTALLATION.md)
-
-**Linux.** Для Ubuntu 24.04 x86_64 подготовлен DEB и проверен запуск установленного приложения. [Пакет и руководство →](docs/RELEASE_GUIDE.md)
 
 **Android.** Установите APK, нажмите **«Продолжить без аккаунта»**, затем **«Добавить музыку с телефона»**. Выбранные файлы копируются во внутреннее хранилище. [Пошаговая инструкция →](docs/MOBILE_OFFLINE_GUIDE.md)
 

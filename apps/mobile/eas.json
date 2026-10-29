@@ -1,84 +1,9 @@
 {
-  "cli": {
-    "version": ">= 18.0.0",
-    "appVersionSource": "local"
-  },
+  "cli": { "version": ">= 18.0.0", "appVersionSource": "local" },
   "build": {
-    "google-play": {
-      "distribution": "store",
-      "environment": "production",
-      "env": {
-        "AURALIS_STORE_RELEASE": "1",
-        "AURALIS_ALLOW_HTTP": "0",
-        "AURALIS_TEST_APK": "0"
-      },
-      "android": {
-        "buildType": "app-bundle"
-      },
-      "credentialsSource": "remote"
-    },
-    "rustore": {
-      "distribution": "store",
-      "environment": "production",
-      "env": {
-        "AURALIS_STORE_RELEASE": "1",
-        "AURALIS_ALLOW_HTTP": "0",
-        "AURALIS_TEST_APK": "0"
-      },
-      "android": {
-        "buildType": "apk"
-      },
-      "credentialsSource": "remote"
-    },
-    "app-store": {
-      "distribution": "store",
-      "environment": "production",
-      "env": {
-        "AURALIS_STORE_RELEASE": "1",
-        "AURALIS_ALLOW_HTTP": "0",
-        "AURALIS_TEST_APK": "0"
-      },
-      "ios": {
-        "buildConfiguration": "Release"
-      },
-      "credentialsSource": "remote"
-    },
-    "ios-simulator": {
-      "distribution": "internal",
-      "ios": {
-        "simulator": true
-      }
-    },
-    "ios-testflight": {
-      "extends": "app-store"
-    },
-    "preview": {
-      "distribution": "internal",
-      "android": {
-        "buildType": "apk"
-      }
-    },
-    "development": {
-      "distribution": "internal",
-      "android": {
-        "buildType": "apk"
-      },
-      "env": {
-        "AURALIS_ALLOW_HTTP": "1"
-      }
-    },
-    "production": {
-      "extends": "google-play"
-    }
+    "preview": { "distribution": "internal", "android": { "buildType": "apk" } },
+    "development": { "distribution": "internal", "android": { "buildType": "apk" }, "env": { "AURALIS_ALLOW_HTTP": "1" } },
+    "production": { "android": { "buildType": "app-bundle" } }
   },
-  "submit": {
-    "production": {},
-    "google-play": {
-      "android": {
-        "track": "internal",
-        "releaseStatus": "draft"
-      }
-    },
-    "app-store": {}
-  }
+  "submit": { "production": {} }
 }

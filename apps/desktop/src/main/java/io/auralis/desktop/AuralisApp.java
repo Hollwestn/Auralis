@@ -16,8 +16,8 @@ public final class AuralisApp extends Application {
     private LibraryService library;
     private final ExecutorService worker=Executors.newVirtualThreadPerTaskExecutor();
     private static volatile boolean smokeFailed;
-    public static Path dataDirectory(){String override=System.getProperty("auralis.data");if(override!=null)return Path.of(override);return DesktopPaths.data(System.getProperty("os.name"),Path.of(System.getProperty("user.home")),System.getenv());}
-    public static Path legacyDataDirectory(){String override=System.getProperty("auralis.legacyData");if(override!=null)return Path.of(override);return DesktopPaths.legacy(System.getProperty("os.name"),Path.of(System.getProperty("user.home")),System.getenv());}
+    public static Path dataDirectory(){String override=System.getProperty("auralis.data");if(override!=null)return Path.of(override);String local=System.getenv("LOCALAPPDATA");return Path.of(local==null?System.getProperty("user.home"):local,"AuralisData");}
+    public static Path legacyDataDirectory(){String override=System.getProperty("auralis.legacyData");if(override!=null)return Path.of(override);String local=System.getenv("LOCALAPPDATA");return Path.of(local==null?System.getProperty("user.home"):local,"Auralis");}
     public static Path prepareDataDirectory()throws java.io.IOException{Path target=dataDirectory();if(System.getProperty("auralis.data")==null||System.getProperty("auralis.legacyData")!=null)DesktopDataMigration.migrateIfNeeded(legacyDataDirectory(),target);return target;}
     @Override public void init() throws Exception {library=new LibraryService(prepareDataDirectory());if(getParameters().getRaw().contains("--smoke-test")&&System.getProperty("auralis.fixture")!=null)library.importPaths(java.util.List.of(Path.of(System.getProperty("auralis.fixture"))));}
     @Override public void start(Stage stage)throws Exception{
@@ -30,7 +30,7 @@ public final class AuralisApp extends Application {
         scene.setOnKeyPressed(event->{if(event.isConsumed())return;if(event.getCode()==javafx.scene.input.KeyCode.F11){stage.setFullScreen(!stage.isFullScreen());event.consume();return;}Node target=event.getTarget() instanceof Node node?node:null;while(target!=null){if(target instanceof javafx.scene.control.TextInputControl||target instanceof javafx.scene.control.ButtonBase||target instanceof javafx.scene.control.ComboBoxBase<?>||target instanceof javafx.scene.control.Slider)return;target=target.getParent();}switch(event.getCode()){case SPACE->{controller.togglePlay();event.consume();}case RIGHT->{controller.seekRelative(5);event.consume();}case LEFT->{controller.seekRelative(-5);event.consume();}default->{}}});
         if(getParameters().getRaw().contains("--smoke-test")){
             var pause=new javafx.animation.PauseTransition(javafx.util.Duration.seconds(3));pause.setOnFinished(e->{try{Path output=dataDirectory().resolve("smoke-home.png");ImageIO.write(SwingFXUtils.fromFXImage(scene.snapshot(null),null),"png",output.toFile());controller.smokeCheck();System.out.println("AURALIS_UI_SMOKE_OK "+output);Platform.exit();}catch(Throwable failure){smokeFailed=true;failure.printStackTrace();Platform.exit();}});pause.play();
-        }else if(Platform.getPreferences().isReducedMotion()||!Boolean.parseBoolean(library.setting("animations.enabled","true"))||Boolean.parseBoolean(library.setting("reducedMotion","false")))Platform.runLater(controller::firstRun);
+        }else if(!Boolean.parseBoolean(library.setting("animations.enabled","true"))||Boolean.parseBoolean(library.setting("reducedMotion","false")))Platform.runLater(controller::firstRun);
         else {
             var intro=new io.auralis.desktop.ui.LaunchSequence(introAccent(),()->{layers.getChildren().removeIf(node->node instanceof io.auralis.desktop.ui.LaunchSequence);controller.firstRun();});
             layers.getChildren().add(intro);intro.play();

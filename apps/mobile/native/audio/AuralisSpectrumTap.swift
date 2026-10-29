@@ -9,19 +9,17 @@ final class AuralisSpectrumTap {
   private var samples = [Double](repeating: 0, count: 1024)
   private var cursor = 0
   private var lastEmit = 0.0
-  var gain = 1.0 { didSet { processor?.auralisGain = Float(gain) } }
   var enabled = false
   var onFrame: (([String: Any]) -> Void)?
 
   func refresh(player: AVQueuePlayer) {
     self.player = player
-    guard (enabled || abs(gain - 1) > 0.000001), player.currentItem?.status == .readyToPlay else { if !enabled && abs(gain - 1) < 0.000001 { invalidate() }; return }
+    guard enabled, player.currentItem?.status == .readyToPlay else { if !enabled { invalidate() }; return }
     if item === player.currentItem && processor?.isTapInstalled == true { return }
     invalidate()
     item = player.currentItem
-    guard let tap = AudioTapProcessor(player: player) else { return }
+    let tap = AudioTapProcessor(player: player)
     processor = tap
-    tap.auralisGain = Float(gain)
     tap.sampleBufferCallback = { [weak self, weak tap] buffer, frames, _ in
       guard let self, let tap, self.enabled, let buffer = buffer?.pointee, let data = buffer.mData else { return }
       let channelCount = max(1, Int(buffer.mNumberChannels))
@@ -78,4 +76,3 @@ final class AuralisSpectrumTap {
   }
   deinit { invalidate() }
 }
-

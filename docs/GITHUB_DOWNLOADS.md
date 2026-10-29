@@ -1,6 +1,6 @@
 # Что скачать с GitHub
 
-**0.9.0:** исходники обновлены. Windows EXE и Android APK собраны в локальной папке `release`; они ещё не заменили файлы публичного выпуска 0.6.2. Для Linux есть [проверенный пакет 0.9.0 из Actions](https://github.com/Hollwestn/Auralis/actions/runs/40854758108/artifacts/12888448766), доступный до 5 ноября 2026. [Руководство 0.9.0](UPDATE_090.md).
+Текущая версия исходников — **0.7.0**. Сохранённые установщики EXE/APK 0.7.0 находятся в локальной папке `release`; публичный Releases пока содержит прежнюю 0.6.2. [Сборка и возможности 0.7.0](UPDATE_070.md).
 
 Готовые файлы находятся в [Releases Auralis](https://github.com/Hollwestn/Auralis/releases). Кнопка GitHub **Code → Download ZIP** скачивает исходники; установщики находятся отдельно в выпуске.
 
@@ -27,7 +27,3 @@
 Ожидаемый результат: сервер слушает порт8080. В другом окне выполните `Invoke-RestMethod http://127.0.0.1:8080/api/v1/health` — ожидается `status: ok`. Для телефона в той же Wi-Fi-сети используйте `http://IPv4_КОМПЬЮТЕРА:8080`, не localhost. Для разных сетей настройте VPS и HTTPS.
 
 Выпуск содержит `SHA256SUMS.txt` и `RELEASE_MANIFEST.json`. Проверить отдельный загруженный файл в Windows можно командой `Get-FileHash .\Auralis-Setup.exe -Algorithm SHA256`, сравнив результат со строкой этого файла в списке сумм.
-
-## Linux 0.8.0 и публикация в магазинах
-
-Для Ubuntu 24.04 x86_64: [DEB, контрольные суммы и скриншот](https://github.com/Hollwestn/Auralis/actions/runs/40727004279/artifacts/12834055712). Артефакт GitHub Actions доступен до 4 ноября 2026 и может требовать входа в GitHub; после этого запустите процесс Linux packages заново. [Сборка и установка, Google Play, RuStore и App Store](RELEASE_GUIDE.md). APK/EXE из прежних Releases имеют собственные версии и не заменяют подписанный AAB/IPA для магазина.

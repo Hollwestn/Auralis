@@ -9,5 +9,3 @@ FFmpeg/FFprobe: binaries в текущей Windows среде собраны с�
 Музыка в поставку не включена. Тестовые WAV синтезируются тестами и не являются пользовательской музыкальной коллекцией. Figma Musium используется как референс композиции; сторонние обложки/логотип не включаются в продукт.
 
 LWJGL 3.4.3 — BSD 3-Clause; GLFW — zlib/libpng license. Windows-поставка содержит lwjgl, lwjgl-glfw, lwjgl-opengl и их официальные natives-windows JAR. OpenGL использует установленный драйвер видеокарты. Общие процедурные GLSL-сцены написаны в проекте; сторонние шейдеры и видеозаписи не упакованы как визуализации.
-
-Bouncy Castle bcpkix/bcprov/bcutil 1.83 — Bouncy Castle Licence (MIT-style), временные TLS-сертификаты локального обмена. ZXing core 3.5.3 — Apache 2.0, QR-коды. fflate 0.8.3 — MIT, потоковые ZIP-копии на телефоне. Expo Widgets, Expo UI, Camera, Sharing и Battery сохраняют лицензии своих пакетов (MIT).

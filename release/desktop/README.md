@@ -1,7 +1,7 @@
-# Auralis для Windows 0.9.0
+# Auralis для Windows 0.7.0
 
-В локальной поставке: `Auralis-0.9.0.exe` (установщик), `Auralis-Setup.exe` (тот же установщик), `Auralis/Auralis.exe` (переносимая папка с runtime). Java и FFmpeg включены.
+Текущая версия проекта — 0.7.0. Сохранённый установщик: `Auralis-0.7.0.exe`; `Auralis-Setup.exe` — его копия. Переносимая папка: `Auralis/`, запускайте `Auralis/Auralis.exe` вместе с её содержимым. Java и FFmpeg включены.
 
-Перед обновлением 0.1 выполните `Safe-Update.ps1`, как описано в [инструкции](../../docs/WINDOWS_INSTALLATION.md). [Возможности 0.9.0](../../docs/UPDATE_090.md) · [Проверки](../../docs/verification/UPDATE_090.md).
+[Возможности и установка](../../docs/UPDATE_070.md) · [Контрольные суммы](../SHA256SUMS-0.7.0.txt).
 
-В публичном Releases пока находятся [старые установщики](https://github.com/Hollwestn/Auralis/releases/tag/v0.6.2-preview). EXE 0.9.0 собран локально; в Git-дерево он не включён.
+Установщики находятся в локальной папке проекта. Публичный GitHub Releases пока содержит прежнюю 0.6.2; исходники в main возвращены к 0.7.0. Сборка Windows из корня: `./scripts/build-desktop.ps1 -Type exe`.

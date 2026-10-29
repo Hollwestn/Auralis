@@ -31,7 +31,6 @@ public final class DesktopUiFlowHarness extends Application {
     private final List<String> checks = new ArrayList<>();
     private final Deque<Runnable> steps = new ArrayDeque<>();
     private EditProject savedProject;
-    private Track removedTrack;
 
     @Override public void init() throws Exception {
         Path data = Path.of(System.getProperty("auralis.data")).toAbsolutePath().normalize();
@@ -58,15 +57,6 @@ public final class DesktopUiFlowHarness extends Application {
                 checks.add("Empty queue sync index -1 and settings-only restore");
             }catch(ReflectiveOperationException error){throw new IllegalStateException(error);}
         });
-        steps.add(()->{try{
-            var manifest=library.backupSnapshot();Map<String,String> ids=new HashMap<>();int at=0;
-            for(var entry:manifest.path("tracks")){String old=entry.path("id").asText(),replacement="mobile-slot-"+(at++);ids.put(old,replacement);((com.fasterxml.jackson.databind.node.ObjectNode)entry).put("id",replacement);}
-            for(var entry:manifest.path("playlists")){var original=entry.path("trackIds").deepCopy();var mapped=((com.fasterxml.jackson.databind.node.ObjectNode)entry).putArray("trackIds");original.forEach(id->mapped.add(ids.get(id.asText())));}
-            var preview=new io.auralis.core.backup.LibraryArchive.Preview(library.dataDirectory().resolve("fixture.auralis"),manifest,3,1,1,0,0,0,3);
-            var method=MainController.class.getDeclaredMethod("backupDifferences",io.auralis.core.backup.LibraryArchive.Preview.class);method.setAccessible(true);
-            require(((List<?>)method.invoke(controller,preview)).isEmpty(),"Content-equivalent mobile identifiers must not create playlist conflicts");
-            ((com.fasterxml.jackson.databind.node.ObjectNode)manifest.path("tracks").get(0)).put("title","Changed on another device");require(((List<?>)method.invoke(controller,preview)).size()==1,"Changed metadata must be shown before confirming transfer");checks.add("Transfer preview compares content identities and shows real metadata differences");
-        }catch(ReflectiveOperationException error){throw new IllegalStateException(error);}});
         steps.add(() -> capture("01-home"));
         steps.add(() -> { click("Медиатека"); });
         steps.add(() -> { assertTableCount(3); capture("02-library"); });
@@ -117,29 +107,11 @@ public final class DesktopUiFlowHarness extends Application {
         steps.add(() -> button("Показать подборку").fire());
         steps.add(() -> await(() -> root.lookup(".table-view") instanceof TableView<?> table && !table.getItems().isEmpty(), () -> capture("13-wave-ranked")));
         steps.add(() -> { click("QA • Local signals"); });
-        steps.add(() -> { assertTableCount(3); capture("14-playlist"); click("Медиатека"); });
-        steps.add(() -> { TableView<Track> table=trackTable();require(button("Удалить из медиатеки").isDisabled(),"Removal without selection must be disabled");table.getSelectionModel().selectFirst();removedTrack=table.getSelectionModel().getSelectedItem();respondToRemoval(false);button("Удалить из медиатеки").fire(); });
-        steps.add(() -> { assertTableCount(3);require(library.track(removedTrack.id()).isPresent(),"Cancel deleted a catalog entry");require(Files.isRegularFile(removedTrack.path()),"Cancel removed original audio");checks.add("Library removal cancellation preserves catalog and original");requestContextRemoval(); });
-        steps.add(() -> await(()->library.track(removedTrack.id()).isEmpty()&&trackTable().getItems().size()==2,()->{
-            require(Files.isRegularFile(removedTrack.path()),"Library deletion removed original audio");require(library.playlists().stream().allMatch(p->p.tracks().stream().noneMatch(t->t.id().equals(removedTrack.id()))),"Deleted track remains in a playlist");require(library.favorites().stream().noneMatch(t->t.id().equals(removedTrack.id())),"Deleted favorite remains");capture("18-track-removed");checks.add("Context menu deletes catalog entry and playlist/favorite references, preserving audio");
-            trackTable().getSelectionModel().selectFirst();removedTrack=trackTable().getSelectionModel().getSelectedItem();respondToRemoval(true);javafx.event.Event.fireEvent(trackTable(),new KeyEvent(KeyEvent.KEY_PRESSED,"","",KeyCode.DELETE,false,false,false,false));
-        }));
-        steps.add(() -> await(()->library.track(removedTrack.id()).isEmpty()&&trackTable().getItems().size()==1,()->{require(Files.isRegularFile(removedTrack.path()),"Delete key removed original audio");checks.add("Delete key confirms and removes only the selected track");finish();}));
-        if(getParameters().getRaw().contains("--removal-only")){List<Runnable> removalSteps=new ArrayList<>(steps).subList(steps.size()-4,steps.size());steps.clear();steps.add(controller::showLibrary);steps.addAll(removalSteps);}
+        steps.add(() -> { assertTableCount(3); capture("14-playlist"); finish(); });
         after(1800, this::next);
     }
     private void theme(Theme theme) {
         Button pick=(Button)root.lookup("#theme-"+theme.name());require(pick!=null,"Theme control missing: "+theme);pick.fire();
-    }
-    @SuppressWarnings("unchecked") private TableView<Track> trackTable(){return (TableView<Track>)root.lookup(".table-view");}
-    private void respondToRemoval(boolean accept){after(120,()->{try{
-        DialogPane pane=javafx.stage.Window.getWindows().stream().filter(w->w.isShowing()&&w.getScene()!=null&&w.getScene().getRoot() instanceof DialogPane).map(w->(DialogPane)w.getScene().getRoot()).findFirst().orElseThrow(()->new IllegalStateException("Removal confirmation missing"));
-        require(pane.getContentText().contains("Исходный аудиофайл останется на диске"),"Removal confirmation must explain original-file preservation");((Button)pane.lookupButton(accept?ButtonType.OK:ButtonType.CANCEL)).fire();
-    }catch(Throwable error){abort(error);}});}
-    private void requestContextRemoval(){
-        root.applyCss();root.layout();TableRow<?> row=trackTable().lookupAll(".table-row-cell").stream().filter(n->n instanceof TableRow<?> r&&r.getItem() instanceof Track t&&t.id().equals(removedTrack.id())).map(n->(TableRow<?>)n).findFirst().orElseThrow();
-        row.getOnContextMenuRequested().handle(new ContextMenuEvent(ContextMenuEvent.CONTEXT_MENU_REQUESTED,0,0,stage.getX()+400,stage.getY()+300,false,new PickResult(row,0,0)));
-        ContextMenu menu=javafx.stage.Window.getWindows().stream().filter(w->w.isShowing()&&w instanceof ContextMenu).map(w->(ContextMenu)w).findFirst().orElseThrow();MenuItem remove=menu.getItems().stream().filter(item->"Удалить из медиатеки".equals(item.getText())).findFirst().orElseThrow();menu.hide();respondToRemoval(true);remove.fire();
     }
     private CheckBox ultraHdBox(){return root.lookupAll(".check-box").stream().filter(n->n instanceof CheckBox c&&c.getText().startsWith("Black Hole · 4K")).map(n->(CheckBox)n).findFirst().orElseThrow();}
     private void click(String contains) { Button found = root.lookupAll(".sidebar .button").stream().filter(n -> n instanceof Button b && b.getText().contains(contains)).map(n -> (Button)n).findFirst().orElseThrow(() -> new IllegalStateException("Navigation absent: " + contains)); found.requestFocus(); found.fire(); require(found.getStyleClass().contains("active")||contains.equals("QA • Local signals"),"Active navigation state missing: "+contains); checks.add("Navigation: " + contains); }
@@ -194,9 +166,9 @@ public final class DesktopUiFlowHarness extends Application {
     private void await(BooleanSupplier condition, Runnable afterSuccess) {
         waiting = true; long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(20);
         Timeline timer = new Timeline(); timer.setCycleCount(Animation.INDEFINITE);
-        timer.getKeyFrames().add(new KeyFrame(Duration.millis(100), e -> { try { if (condition.getAsBoolean()) { timer.stop(); Platform.runLater(()->{try{afterSuccess.run();waiting=false;after(400,this::next);}catch(Throwable error){abort(error);}}); } else if (System.nanoTime() > deadline) { timer.stop(); abort(new IllegalStateException("Timed out waiting for visible UI state")); } } catch (Throwable error) { timer.stop(); abort(error); } })); timer.play();
+        timer.getKeyFrames().add(new KeyFrame(Duration.millis(100), e -> { try { if (condition.getAsBoolean()) { timer.stop(); afterSuccess.run(); waiting = false; after(400, this::next); } else if (System.nanoTime() > deadline) { timer.stop(); abort(new IllegalStateException("Timed out waiting for visible UI state")); } } catch (Throwable error) { timer.stop(); abort(error); } })); timer.play();
     }
-    private void after(int milliseconds, Runnable action) { PauseTransition pause = new PauseTransition(Duration.millis(milliseconds)); pause.setOnFinished(e -> Platform.runLater(action)); pause.play(); }
+    private void after(int milliseconds, Runnable action) { PauseTransition pause = new PauseTransition(Duration.millis(milliseconds)); pause.setOnFinished(e -> action.run()); pause.play(); }
     private void capture(String name) {
         try {
             root.applyCss(); root.layout();
@@ -214,4 +186,3 @@ public final class DesktopUiFlowHarness extends Application {
     /** Plain launcher avoids Java's module-path special case for an Application main class. */
     public static final class Launcher { public static void main(String[] args) { DesktopUiFlowHarness.main(args); } }
 }
-

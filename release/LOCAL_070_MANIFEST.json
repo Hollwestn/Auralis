@@ -1,0 +1,35 @@
+{
+  "version": "0.7.0",
+  "date": "2026-10-22",
+  "files": [
+    {
+      "path": "release/desktop/Auralis-0.7.0.exe",
+      "sizeBytes": 121431552,
+      "sha256": "5adf8390a8c2c8cb6fe1cb3f7845ca81ff49e5f27eaddd9e7a3ce29ab13ef239"
+    },
+    {
+      "path": "release/android/Auralis-Android-0.7.0-Preview.apk",
+      "sizeBytes": 33374196,
+      "sha256": "2b7be320ba5ad4b8151ea2230fdcbb171eae8d9c0196a73299d2cefdfddb86a0"
+    }
+  ],
+  "checks": {
+    "javaTests": 60,
+    "desktopUiChecks": 49,
+    "mobileNodeTests": 19,
+    "nativePcmTests": 3,
+    "typecheck": "PASS",
+    "eslint": "PASS",
+    "androidReleaseBuild": "PASS",
+    "apkSignature": "PASS",
+    "apk16KiBAlignment": "PASS",
+    "packagedWindowsSmoke": "PASS",
+    "androidSourceInputsVerified": 52,
+    "apkNativeMethodsPresent": true,
+    "iosHermesExport": "PASS",
+    "iosNativeBuild": "NOT_RUN_NO_XCODE",
+    "android070PhysicalDevice": "NOT_RUN_NO_CONNECTED_DEVICE",
+    "windowsInstallerActualInstall": "NOT_RUN_EXISTING_INSTALLATION"
+  },
+  "notes": "Native Android extraction and background sleep timer require physical-device verification. iOS native sources require Xcode compilation and signing."
+}

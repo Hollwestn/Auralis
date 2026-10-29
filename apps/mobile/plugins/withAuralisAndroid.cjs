@@ -42,7 +42,28 @@ subprojects { nativeProject ->
     return result;
   });
   return withAppBuildGradle(config, result => {
-    result.modResults.contents = require('./release-signing.cjs').patchReleaseSigning(result.modResults.contents);
+    if (result.modResults.contents.includes('// AURALIS_RELEASE_SIGNING')) return result;
+    const signing = `
+        // AURALIS_RELEASE_SIGNING: credentials stay in the build environment.
+        release {
+            if (System.getenv('AURALIS_UPLOAD_STORE_FILE')) {
+                storeFile file(System.getenv('AURALIS_UPLOAD_STORE_FILE'))
+                storePassword System.getenv('AURALIS_UPLOAD_STORE_PASSWORD')
+                keyAlias System.getenv('AURALIS_UPLOAD_KEY_ALIAS')
+                keyPassword System.getenv('AURALIS_UPLOAD_KEY_PASSWORD')
+            }
+        }
+`;
+    let contents = result.modResults.contents.replace('signingConfigs {', `signingConfigs {${signing}`);
+    const releaseStart = contents.indexOf('        release {', contents.indexOf('buildTypes {'));
+    if (releaseStart < 0) throw new Error('Auralis: unsupported Expo Android buildTypes template');
+    contents = contents.slice(0, releaseStart) + contents.slice(releaseStart).replace('signingConfig signingConfigs.debug', `def hasReleaseKey = System.getenv('AURALIS_UPLOAD_STORE_FILE') != null
+            def isTestApk = System.getenv('AURALIS_TEST_APK') == '1'
+            if (!hasReleaseKey && !isTestApk && gradle.startParameter.taskNames.any { it.toLowerCase().contains('release') }) {
+                throw new GradleException('Release signing requires AURALIS_UPLOAD_STORE_FILE/STORE_PASSWORD/KEY_ALIAS/KEY_PASSWORD. For a local test APK explicitly set AURALIS_TEST_APK=1.')
+            }
+            signingConfig hasReleaseKey ? signingConfigs.release : signingConfigs.debug`);
+    result.modResults.contents = contents;
     return result;
   });
 };

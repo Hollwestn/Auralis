@@ -1,7 +1,5 @@
 param(
     [switch]$TestApk,
-    [switch]$Store,
-    [ValidateSet('apk','aab')][string]$Format = 'apk',
     [switch]$AllowLocalHttp,
     [ValidateSet('arm64-v8a','x86_64','armeabi-v7a','all')][string]$Architecture = 'arm64-v8a',
     [switch]$SkipInstall,
@@ -14,12 +12,8 @@ $previousLocation = Get-Location
 $previousJava = $env:JAVA_HOME
 $previousHttp = $env:AURALIS_ALLOW_HTTP
 $previousTest = $env:AURALIS_TEST_APK
-$previousStore = $env:AURALIS_STORE_RELEASE
 function Check-Exit([string]$action) { if ($LASTEXITCODE -ne 0) { throw "$action завершилось с кодом $LASTEXITCODE" } }
 try {
-    if ($Store -and ($TestApk -or $AllowLocalHttp)) { throw 'Магазинная сборка запрещает тестовую подпись и HTTP.' }
-    if ($Format -eq 'aab' -and $TestApk) { throw 'AAB требует production-подпись; -TestApk создаёт только APK.' }
-    $env:AURALIS_STORE_RELEASE = if ($Store) { '1' } else { '0' }
     foreach ($command in @('node','npm')) { if (-not (Get-Command $command -ErrorAction SilentlyContinue)) { throw "Установите ${command}: https://nodejs.org/en/download" } }
     $java17 = Join-Path $env:ProgramFiles 'Java\jdk-17'
     if (Test-Path -LiteralPath $java17) { $env:JAVA_HOME = $java17 }
@@ -46,20 +40,13 @@ try {
     & npm exec -- expo prebuild --no-install --no-clean --platform android; Check-Exit 'Expo prebuild'
     Set-Location -LiteralPath (Join-Path $mobile 'android')
     $architectures = if ($Architecture -eq 'all') { 'arm64-v8a,armeabi-v7a,x86_64' } else { $Architecture }
-    $task = if ($Format -eq 'aab') { 'bundleRelease' } else { 'assembleRelease' }
-    & .\gradlew.bat $task "-PreactNativeArchitectures=$architectures" --console=plain --no-daemon --max-workers=2; Check-Exit 'Gradle APK'
-    $relative = if ($Format -eq 'aab') { 'android/app/build/outputs/bundle/release/app-release.aab' } else { 'android/app/build/outputs/apk/release/app-release.apk' }
-    $built = Join-Path $mobile $relative
-    if (-not (Test-Path -LiteralPath $built) -or (Get-Item -LiteralPath $built).Length -lt 100000) { throw 'Gradle не создал пакет приложения.' }
-    if ($Format -eq 'apk') { & (Join-Path $PSScriptRoot 'verify-apk.ps1') -Path $built }
-    else {
-        & (Join-Path $env:JAVA_HOME 'bin/jarsigner.exe') -verify $built; Check-Exit 'Проверка подписи AAB'
-        $entries = & (Join-Path $env:JAVA_HOME 'bin/jar.exe') tf $built; Check-Exit 'Проверка содержимого AAB'
-        if (-not ($entries -contains 'BundleConfig.pb') -or -not ($entries -contains 'base/manifest/AndroidManifest.xml') -or -not ($entries | Where-Object { $_ -match '^META-INF/.+\.(RSA|EC|DSA)$' })) { throw 'Некорректный или неподписанный AAB.' }
-    }
+    & .\gradlew.bat assembleRelease "-PreactNativeArchitectures=$architectures" --console=plain --no-daemon --max-workers=2; Check-Exit 'Gradle APK'
+    $built = Join-Path $mobile 'android\app\build\outputs\apk\release\app-release.apk'
+    if (-not (Test-Path -LiteralPath $built) -or (Get-Item -LiteralPath $built).Length -lt 100000) { throw 'Gradle не создал настоящий APK.' }
+    & (Join-Path $PSScriptRoot 'verify-apk.ps1') -Path $built
     $output = Join-Path $repository 'release\android'
     New-Item -ItemType Directory -Path $output -Force | Out-Null
-    $name = if ($TestApk) { 'Auralis-Android-Test.apk' } elseif ($Format -eq 'aab') { 'Auralis-GooglePlay.aab' } elseif ($Store) { 'Auralis-RuStore.apk' } else { 'Auralis-Android.apk' }
+    $name = if ($TestApk) { 'Auralis-Android-Test.apk' } else { 'Auralis-Android.apk' }
     $destination = Join-Path $output $name
     Copy-Item -LiteralPath $built -Destination $destination -Force
     Get-FileHash -LiteralPath $destination -Algorithm SHA256
@@ -70,5 +57,4 @@ try {
     $env:JAVA_HOME = $previousJava
     $env:AURALIS_ALLOW_HTTP = $previousHttp
     $env:AURALIS_TEST_APK = $previousTest
-    $env:AURALIS_STORE_RELEASE = $previousStore
 }

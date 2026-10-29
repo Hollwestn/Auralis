@@ -21,7 +21,7 @@ export function localTrackId(sha256: string) {
 
 /** The durable file index is authoritative, including recovery after an interrupted import. */
 export function reconcileLocalLibrary(cached: CachedLibrary, files: OfflineTrack[]): CachedLibrary {
-  const tracks = [...files.map(item => ({ ...(cached.tracks.find(track => track.id === item.track.id) || item.track), missing: false })), ...cached.tracks.filter(track => track.missing && !files.some(file => file.track.id === track.id))];
+  const tracks = files.map(item => cached.tracks.find(track => track.id === item.track.id) || item.track);
   const ids = new Set(tracks.map(track => track.id));
   return { ...cached, tracks, favorites: tracks.filter(track => cached.favorites.some(item => item.id === track.id)), playlists: cached.playlists.map(item => ({ ...item, trackIds: item.trackIds.filter(id => ids.has(id)) })), history: cached.history.filter(item => ids.has(item.trackId)) };
 }

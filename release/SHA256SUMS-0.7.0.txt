@@ -1,0 +1,2 @@
+5adf8390a8c2c8cb6fe1cb3f7845ca81ff49e5f27eaddd9e7a3ce29ab13ef239  release/desktop/Auralis-0.7.0.exe
+2b7be320ba5ad4b8151ea2230fdcbb171eae8d9c0196a73299d2cefdfddb86a0  release/android/Auralis-Android-0.7.0-Preview.apk

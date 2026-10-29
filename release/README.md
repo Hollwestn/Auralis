@@ -1,3 +1,7 @@
+# Текущая версия: Auralis 0.7.0
+
+[Windows](desktop/README.md) · [Android](android/README.md) · [Описание обновления](../docs/UPDATE_070.md) · [SHA-256](SHA256SUMS-0.7.0.txt). Готовые 0.7.0 EXE/APK сохранены локально; следующие ссылки относятся к прежнему публичному выпуску.
+
 # Скачать Auralis
 
 Готовые приложения доступны в [GitHub Releases](https://github.com/inalinalinal2009-oss/Auralis/releases/tag/v0.6.2-preview). Папка `release` в исходниках содержит ссылки и вспомогательные файлы; установщики скачиваются отдельно.

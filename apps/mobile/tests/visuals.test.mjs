@@ -55,7 +55,7 @@ test('audio attacks flash once and decay during a sustained tone, with no clock-
 test('removed graphics migrate safely and invalid persisted values cannot break startup', () => {
   for (const old of ['Liquid Core','LIQUID_CORE','AMBIENT_FLOW','Reactive Album Art']) assert.equal(normalizeVisualMode(old), 'Black Hole');
   assert.equal(normalizeVisualMode('NEBULA_DRIFT'), 'Nebula Drift');
-  assert.deepEqual(normalizeVisualPreferences({mode: 'broken', quality: 'invalid', intensity: NaN, enabled: 'yes', fps: 500}), {adaptive:true, mode:'Black Hole', quality:'Balanced', intensity:1, enabled:true, fps:30, idleSpeed:1, playingSpeed:.75});
+  assert.deepEqual(normalizeVisualPreferences({mode: 'broken', quality: 'invalid', intensity: NaN, enabled: 'yes', fps: 500}), {mode:'Black Hole', quality:'Balanced', intensity:1, enabled:true, fps:30, idleSpeed:1, playingSpeed:.75});
 });
 
 test('speed settings persist through sync and preserve defaults for old devices', async () => {

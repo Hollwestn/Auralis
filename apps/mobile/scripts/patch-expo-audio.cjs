@@ -18,13 +18,6 @@ function edit(relative, before, after) {
   fs.writeFileSync(filename, value.replace(before, after));
 }
 const kotlin = 'android/src/main/java/expo/modules/audio/';
-// Migrate the early 0.9 hook placement without disturbing the versioned spectrum anchor.
-{
-  const filename=path.join(audio,kotlin,'AudioPlaylist.kt');
-  const value=fs.readFileSync(filename,'utf8').replace(/\r\n/g,'\n');
-  const migrated=value.replace('    auralisSleep.onStart = { auralisTransitions.cancelFade() }\n    installPlayerListeners()', '    installPlayerListeners()');
-  if(migrated!==value)fs.writeFileSync(filename,migrated);
-}
 fs.copyFileSync(path.join(root, 'native/audio/AuralisPcmTap.kt'), path.join(audio, kotlin, 'AuralisPcmTap.kt'));
 const testDirectory = path.join(audio, 'android/src/test/java/expo/modules/audio');
 fs.mkdirSync(testDirectory, { recursive: true });
@@ -71,9 +64,4 @@ edit('ios/AudioModule.swift', '        playlist.auralisSpectrum.refresh(player: 
       AsyncFunction("setAuralisSleepTimer") { (playlist: AudioPlaylist, seconds: Double) in
         playlist.auralisSleep.set(seconds, player: playlist.ref)
       }.runOnQueue(.main)`);
-require('./patch-audio-queue.cjs')({ edit, audio, root, kotlin });
-require('./patch-audio-loudness.cjs')({ edit, audio, root, kotlin });
-require('./patch-audio-transitions.cjs')({ edit, audio, root, kotlin });
-require('./patch-audio-peer.cjs')({ edit, audio, root, kotlin });
-require('./patch-audio-storage.cjs')({ edit, audio, root, kotlin });
-console.log('Auralis: PCM, metadata, sleep timer and continuous queue edits patched (Expo Audio 58.0.9).');
+console.log('Auralis: PCM spectrum, local artwork and native sleep timer patched (Expo Audio 58.0.9).');

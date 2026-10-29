@@ -77,16 +77,13 @@ export function TrackRow({ track, tracks, queueIndex }: { track: Track; tracks: 
         <Pressable accessibilityLabel="Закрыть меню" onPress={() => { setMenu(false); setChoosePlaylist(false); }} style={{ flex: 1 }} />
         <SafeAreaView edges={['bottom']} style={{ backgroundColor: p.surface, borderTopLeftRadius: 28, borderTopRightRadius: 28, padding: 22, gap: 10, maxHeight: '75%' }}>
           <Text style={ui.subtitle}>{track.title}</Text><Text style={ui.muted}>{track.artist}</Text>
-          {choosePlaylist ? <ScrollView><Text style={[ui.eyebrow, { marginVertical: 16 }]}>ДОБАВИТЬ В ПЛЕЙЛИСТ</Text>{app.library.playlists.map(playlist => <View key={playlist.id} style={{ marginBottom: 10 }}><Button secondary label={playlist.name} onPress={() => act(() => app.savePlaylist({ ...playlist, trackIds: playlist.trackIds.includes(track.id) ? playlist.trackIds : [...playlist.trackIds, track.id] }))} /></View>)}{!app.library.playlists.length && <Text style={ui.muted}>Сначала создайте плейлист в «Моей музыке».</Text>}<Button secondary label="Назад" onPress={() => setChoosePlaylist(false)} /></ScrollView> : <ScrollView contentContainerStyle={{gap:10}}>
+          {choosePlaylist ? <ScrollView><Text style={[ui.eyebrow, { marginVertical: 16 }]}>ДОБАВИТЬ В ПЛЕЙЛИСТ</Text>{app.library.playlists.map(playlist => <View key={playlist.id} style={{ marginBottom: 10 }}><Button secondary label={playlist.name} onPress={() => act(() => app.savePlaylist({ ...playlist, trackIds: playlist.trackIds.includes(track.id) ? playlist.trackIds : [...playlist.trackIds, track.id] }))} /></View>)}{!app.library.playlists.length && <Text style={ui.muted}>Сначала создайте плейлист в «Моей музыке».</Text>}<Button secondary label="Назад" onPress={() => setChoosePlaylist(false)} /></ScrollView> : <>
             <Button secondary icon={favorite ? 'heart' : 'heart-outline'} label={favorite ? 'Убрать из избранного' : 'В избранное'} onPress={() => act(() => app.favorite(track))} />
-            <Button secondary icon="play-forward-outline" label="Следующим" onPress={()=>act(()=>app.queueTrack(track,true))}/>
-            <Button secondary icon="add-outline" label="В конец очереди" onPress={()=>act(()=>app.queueTrack(track,false))}/>
-            {app.localMode&&<Button secondary icon="create-outline" label="Метаданные и обложка" onPress={()=>{setMenu(false);router.push({pathname:'/metadata',params:{ids:JSON.stringify([track.id])}});}}/>}
             <Button secondary icon="list-outline" label="В плейлист" onPress={() => setChoosePlaylist(true)} />
             {app.localMode ? <Button secondary icon="trash-outline" disabled={app.importing} label="Удалить из библиотеки" onPress={() => { setMenu(false); Alert.alert('Удалить трек?', 'Будет удалена только копия внутри Auralis. Исходный файл в памяти телефона останется.', [{ text: 'Отмена', style: 'cancel' }, { text: 'Удалить', style: 'destructive', onPress: () => app.run(() => app.removeLocalTrack(track.id)) }]); }} /> : <Button secondary icon={downloaded ? 'trash-outline' : 'download-outline'} disabled={!!app.downloading} label={downloaded ? 'Удалить скачанный файл' : app.downloading === track.id ? 'Скачивание…' : 'Скачать для офлайна'} onPress={() => { setMenu(false); if (downloaded) app.removeDownload(track.id); else app.run(() => app.download(track)); }} />}
             {active && <Button secondary icon="thumbs-down-outline" label="Меньше похожего" onPress={() => act(() => app.feedback('LESS'))} />}
             <Button label="Готово" onPress={() => setMenu(false)} />
-          </ScrollView>}
+          </>}
         </SafeAreaView>
       </View>
     </Modal>

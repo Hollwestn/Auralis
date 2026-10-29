@@ -1,3 +1,0 @@
-22673e765fdf9f30910bb380c7fdf80bac2f29099127ae7ca04cbf32a9e8f927  desktop/Auralis-0.9.0.exe
-753472223fffd317834e1f05fae68b0774f9a08ecb0394a6688ec486417d70f8  android/Auralis-Android-0.9.0-Preview.apk
-d5766c3a8693b8cddbc6006edcd111a8189c64eb83146cac43963b86011e50ca  linux/auralis_0.9.0_amd64.deb

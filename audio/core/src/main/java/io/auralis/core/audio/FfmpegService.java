@@ -28,11 +28,11 @@ public final class FfmpegService {
         if (configured != null && !configured.isBlank()) return configured;
         String appHome = System.getProperty("auralis.home", "");
         if (!appHome.isBlank()) {
-            Path packaged = Path.of(appHome).resolve("tools").resolve(name + (System.getProperty("os.name", "").toLowerCase(Locale.ROOT).startsWith("windows") ? ".exe" : ""));
+            Path packaged = Path.of(appHome).resolve("tools").resolve(name + (System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win") ? ".exe" : ""));
             if (Files.isRegularFile(packaged)) return packaged.toString();
         }
         Path bundled = Path.of("C:/Program Files/FFmpeg/bin/" + name + ".exe");
-        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).startsWith("windows") && Files.isRegularFile(bundled) ? bundled.toString() : name;
+        return Files.isRegularFile(bundled) ? bundled.toString() : name;
     }
     public boolean available() {
         try { run(List.of(ffmpeg, "-version"), Duration.ofSeconds(30)); run(List.of(ffprobe, "-version"), Duration.ofSeconds(30)); return true; }

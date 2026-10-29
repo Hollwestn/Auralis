@@ -16,24 +16,22 @@ import kotlin.math.*
 /** Own-player decoded PCM only. No microphone, global audio capture, or waveform synthesis. */
 object AuralisPcmBus {
   @Volatile var enabled = false
-  @Volatile var gain = 1.0
   @Volatile var onFrame: ((Map<String, Any>) -> Unit)? = null
 }
 
 @UnstableApi
-class AuralisRenderersFactory(context: Context, private val gain: () -> Double = { AuralisPcmBus.gain }, private val emitSpectrum: Boolean = true) : DefaultRenderersFactory(context) {
+class AuralisRenderersFactory(context: Context) : DefaultRenderersFactory(context) {
   override fun buildAudioSink(context: Context, enableFloatOutput: Boolean, enableAudioTrackPlaybackParams: Boolean): AudioSink =
-    DefaultAudioSink.Builder(context).setAudioProcessors(arrayOf(AuralisPcmTap(gain, emitSpectrum))).build()
+    DefaultAudioSink.Builder(context).setAudioProcessors(arrayOf(AuralisPcmTap())).build()
 }
 
 @UnstableApi
 @Keep // Keep the PCM processor identifiable in the final APK verification.
-class AuralisPcmTap(private val gain: () -> Double = { AuralisPcmBus.gain }, private val emitSpectrum: Boolean = true) : BaseAudioProcessor() {
+class AuralisPcmTap : BaseAudioProcessor() {
   private val samples = DoubleArray(1024)
   private val real = DoubleArray(1024)
   private val imaginary = DoubleArray(1024)
   private val window = DoubleArray(1024) { 0.5 - 0.5 * cos(2.0 * PI * it / 1023.0) }
-  private var currentGain = 1.0
   private var cursor = 0
   private var channels = 2
   private var sampleRate = 44100
@@ -50,23 +48,8 @@ class AuralisPcmTap(private val gain: () -> Double = { AuralisPcmBus.gain }, pri
     // BaseAudioProcessor shares that zero-capacity buffer: copying it into itself
     // throws on Android. An empty packet must also leave pending output intact.
     if (size == 0) return
-    val output = replaceOutputBuffer(size).order(ByteOrder.nativeOrder())
-    val target = gain().coerceIn(0.0, 3.981071706)
-    if (abs(target - 1.0) < 0.000001 && abs(currentGain - 1.0) < 0.000001) output.put(inputBuffer)
-    else {
-      val source = inputBuffer.order(ByteOrder.nativeOrder())
-      val width = if (encoding == C.ENCODING_PCM_FLOAT) 4 else 2
-      while (source.remaining() >= width) {
-        currentGain += (target - currentGain) * (1.0 - exp(-1.0 / (sampleRate * channels * 0.025)))
-        val sample = if (encoding == C.ENCODING_PCM_FLOAT) source.float.toDouble() else source.short / 32768.0
-        val scaled = (sample * currentGain).coerceIn(-0.999969, 0.999969)
-        if (encoding == C.ENCODING_PCM_FLOAT) output.putFloat(scaled.toFloat()) else output.putShort((scaled * 32768).toInt().toShort())
-      }
-      while(source.hasRemaining()) output.put(source.get())
-    }
-    output.flip()
-    if (AuralisPcmBus.enabled && emitSpectrum) {
-      val data = output.duplicate().order(ByteOrder.nativeOrder())
+    if (AuralisPcmBus.enabled) {
+      val data = inputBuffer.duplicate().order(ByteOrder.nativeOrder())
       val bytes = (if (encoding == C.ENCODING_PCM_FLOAT) 4 else 2) * channels
       while (data.remaining() >= bytes) {
         var mono = 0.0
@@ -75,7 +58,8 @@ class AuralisPcmTap(private val gain: () -> Double = { AuralisPcmBus.gain }, pri
         if (cursor == 1024) { cursor = 0; analyze() }
       }
     }
-    // Unity gain is byte-identical; gain changes use a 25 ms PCM ramp and sample limiter.
+    // Copy the original bytes unchanged into the output path.
+    replaceOutputBuffer(size).put(inputBuffer).flip()
   }
   private fun analyze() {
     val now = System.nanoTime()
@@ -113,5 +97,5 @@ class AuralisPcmTap(private val gain: () -> Double = { AuralisPcmBus.gain }, pri
     }
     AuralisPcmBus.onFrame?.invoke(mapOf("bands" to bands, "rms" to sqrt(energy / 1024.0), "peak" to peak, "sampleRate" to sampleRate, "windowSize" to 1024))
   }
-  override fun onFlush() { cursor = 0; lastEmit = 0; currentGain = gain() }
+  override fun onFlush() { cursor = 0; lastEmit = 0 }
 }

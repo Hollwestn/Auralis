@@ -30,15 +30,10 @@ public final class VisualizerPane extends StackPane implements AutoCloseable {
     private boolean active=true,playing,effectsEnabled=true,animationsEnabled=true,reducedMotion,closed,backdropMode,gpuFailed,ultraHd;
     private double intensity=1,time,zoom=1,lastBass,idleSpeed=1,playingSpeed=.75;
     private int fps=45;
-    private boolean adaptive=true;
-    private final FrameBudget budget=new FrameBudget();
-    public void setAdaptive(boolean value){adaptive=value;}
-    public int graphicsBudgetLevel(){return adaptive?budget.level():0;}
     private long lastFrame,nextFrameDue,renderedFrames;
     private final AnimationTimer timer=new AnimationTimer(){
         @Override public void handle(long now){
-            int requested=adaptive?budget.fps(fps):fps;
-            int cap=reducedMotion?Math.min(requested,15):playing?requested:Math.min(requested,15);
+            int cap=reducedMotion?Math.min(fps,15):playing?fps:Math.min(fps,15);
             long interval=1_000_000_000L/cap;
             if(nextFrameDue!=0&&now+500_000<nextFrameDue)return;
             nextFrameDue=nextFrameDue==0||now-nextFrameDue>interval*2?now+interval:nextFrameDue+interval;
@@ -100,12 +95,11 @@ public final class VisualizerPane extends StackPane implements AutoCloseable {
         if(gpuFailed||Boolean.getBoolean("auralis.graphics.software")){gpuFailed=true;updateNotice();drawFallback(frame);return;}
         double w=Math.max(80,getWidth()),h=Math.max(80,getHeight());
         double scale=quality==Quality.LOW?.5:quality==Quality.MEDIUM?.72:1.;
-        if(adaptive)scale*=budget.scale();
         scale=Math.min(scale,(mode==Mode.BLACK_HOLE&&quality==Quality.HIGH?1600:1100)/Math.max(w,h));int width=Math.max(64,(int)(w*scale)),height=Math.max(64,(int)(h*scale));
-        if(ultraHd&&mode==Mode.BLACK_HOLE){double factor=adaptive?budget.scale():1;width=Math.max(64,(int)(3840*factor));height=Math.max(64,(int)(2160*factor));}
+        if(ultraHd&&mode==Mode.BLACK_HOLE){width=3840;height=2160;}
         float offset=backdropMode?(float)(w/h*(mode==Mode.BLACK_HOLE?.10:.19)):0;
         renderer.render(new CinematicRenderer.Frame(width,height,mode.ordinal(),ultraHd&&mode==Mode.BLACK_HOLE?2:quality.ordinal(),(float)time,(float)(intensity*(reducedMotion?.3:1)),accent,frame,offset,0,(float)zoom,(float)(w/Math.min(w,h)/(width/(double)Math.min(width,height))),(float)(h/Math.min(w,h)/(height/(double)Math.min(width,height))),artwork),image->{
-            if(active&&effectsEnabled&&!closed){if(adaptive)budget.sample(renderer.lastMillis(),playing?budget.fps(fps):Math.min(budget.fps(fps),15),System.nanoTime());surface.setImage(image);surface.setVisible(true);fallback.setVisible(false);}
+            if(active&&effectsEnabled&&!closed){surface.setImage(image);surface.setVisible(true);fallback.setVisible(false);}
         },error->{gpuFailed=true;System.err.println("Auralis GPU fallback: "+error);surface.setVisible(false);fallback.setVisible(true);updateNotice();drawFallback(frame);});
     }
     private void drawFallback(AudioEnvelope.Frame frame){

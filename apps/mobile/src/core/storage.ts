@@ -1,4 +1,3 @@
-import { requireNativeModule } from 'expo';
 import { Directory, File, Paths } from 'expo-file-system';
 import * as SecureStore from 'expo-secure-store';
 import type { CachedLibrary, OfflineTrack, Session } from './types';
@@ -17,28 +16,10 @@ async function read<T>(target: File, fallback: T): Promise<T> {
   if (!target.exists) return fallback;
   try { return JSON.parse(await target.text()) as T; } catch { return fallback; }
 }
-function write(target: File, value: unknown) {
-  const json=JSON.stringify(value),native=requireNativeModule('ExpoAudio') as {writeAuralisJsonAtomic?:(uri:string,value:string)=>void};
-  if(native.writeAuralisJsonAtomic){native.writeAuralisJsonAtomic(target.uri,json);return;}
-  const temporary=new File(target.parentDirectory,`${target.name}.write-pending`);
-  try { temporary.writeSync(json);temporary.moveSync(target,{overwrite:true}); }
-  finally { const leftover=new File(target.parentDirectory,`${target.name}.write-pending`);if(leftover.exists)leftover.delete(); }
-}
+function write(target: File, value: unknown) { target.writeSync(JSON.stringify(value)); }
 
 export const storage = {
   cacheRoot: () => Paths.cache.uri,
-  restoredDirectory(session: Session) { return new Directory(userDirectory(session), 'restored'); },
-  async recoverRestore(session: Session) {
-    const journal = file(session, 'restore.pending.json');
-    const pending = await read<{ library: CachedLibrary; downloads: OfflineTrack[]; state: Record<string, unknown> } | null>(journal, null);
-    if (pending) { write(file(session, 'library.json'), pending.library); write(file(session, 'downloads.json'), pending.downloads); write(file(session, 'state.json'), pending.state); }
-    if (journal.exists) journal.delete();
-  },
-  commitRestore(session: Session, library: CachedLibrary, downloads: OfflineTrack[], state: Record<string, unknown>) {
-    const journal = file(session, 'restore.pending.json');
-    write(journal, { library, downloads, state });
-    write(file(session, 'library.json'), library); write(file(session, 'downloads.json'), downloads); write(file(session, 'state.json'), state); journal.delete();
-  },
   async session(): Promise<Session | null> {
     const value = await SecureStore.getItemAsync(SESSION_KEY);
     if (!value) return null;

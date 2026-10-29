@@ -9,8 +9,6 @@ import androidx.media3.exoplayer.ExoPlayer
 class AuralisSleepTimer(private val player: ExoPlayer) {
   private val handler = Handler(Looper.getMainLooper())
   private var deadline = 0L
-  val active get() = deadline > 0L
-  var onStart: (() -> Unit)? = null
   private var originalVolume: Float? = null
   private val tick = object : Runnable {
     override fun run() {
@@ -25,7 +23,6 @@ class AuralisSleepTimer(private val player: ExoPlayer) {
   }
   fun set(seconds: Double) {
     require(seconds.isFinite() && seconds >= 0 && seconds <= 86400)
-    if(seconds > 0) onStart?.invoke()
     cancel()
     if (seconds > 0) { deadline = SystemClock.elapsedRealtime() + (seconds * 1000).toLong(); handler.post(tick) }
   }
