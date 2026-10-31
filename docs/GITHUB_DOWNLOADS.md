@@ -1,18 +1,16 @@
 # Что скачать с GitHub
 
-Текущая версия исходников — **0.7.0**. Сохранённые установщики EXE/APK 0.7.0 находятся в локальной папке `release`; публичный Releases пока содержит прежнюю 0.6.2. [Сборка и возможности 0.7.0](UPDATE_070.md).
-
-Готовые файлы находятся в [Releases Auralis](https://github.com/Hollwestn/Auralis/releases). Кнопка GitHub **Code → Download ZIP** скачивает исходники; установщики находятся отдельно в выпуске.
+Текущая версия — **0.7.0**, опубликована в [Releases](https://github.com/Hollwestn/Auralis/releases/tag/v0.7.0). Code → Download ZIP скачивает исходники, а установщики находятся в Assets выпуска.
 
 ## Windows
 
-Скачайте `Auralis-Setup.exe` и запустите установщик. Дополнительные Java и FFmpeg для самого приложения не нужны. MSI — альтернативный вариант. Если обновляете старую 0.1, сначала прочитайте [безопасное обновление](WINDOWS_INSTALLATION.md) и скачайте `Safe-Update.ps1`.
+Скачайте [Auralis-0.7.0.exe](https://github.com/Hollwestn/Auralis/releases/download/v0.7.0/Auralis-0.7.0.exe) и запустите установщик. Java и FFmpeg включены. Для обновления старой 0.1 сначала прочитайте [инструкцию](WINDOWS_INSTALLATION.md).
 
 ## Android
 
-Скачайте `Auralis-Android-Test.apk`, откройте его на телефоне и установите обновление. Это arm64-сборка для Android7+ с тестовой подписью. Текущая 0.6.2 опубликована как Preview: автоматические проверки и сборка прошли, полный новый локальный сценарий на телефоне пока не подтверждён.
+Скачайте [Auralis-Android-0.7.0-Preview.apk](https://github.com/Hollwestn/Auralis/releases/download/v0.7.0/Auralis-Android-0.7.0-Preview.apk). ARM64, Android 7+, тестовая подпись, versionCode 12. Для музыки с телефона выберите «Продолжить без аккаунта» → «Добавить музыку с телефона». [Инструкция](MOBILE_OFFLINE_GUIDE.md).
 
-Для режима без сервера выберите «Продолжить без аккаунта» → «Добавить музыку с телефона». [Полная инструкция](MOBILE_OFFLINE_GUIDE.md).
+Android блокирует обычное понижение версии поверх versionCode 13/14. Сохраните нужные локальные данные до любых действий с установленной более новой версией.
 
 ## Сервер
 

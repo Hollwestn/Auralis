@@ -4,4 +4,4 @@
 
 [Возможности и установка](../../docs/UPDATE_070.md) · [Контрольные суммы](../SHA256SUMS-0.7.0.txt).
 
-Установщики находятся в локальной папке проекта. Публичный GitHub Releases пока содержит прежнюю 0.6.2; исходники в main возвращены к 0.7.0. Сборка Windows из корня: `./scripts/build-desktop.ps1 -Type exe`.
+Установщики опубликованы в [GitHub Releases 0.7.0](https://github.com/Hollwestn/Auralis/releases/tag/v0.7.0). Сборка Windows из корня: `./scripts/build-desktop.ps1 -Type exe`.

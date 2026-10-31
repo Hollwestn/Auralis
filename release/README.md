@@ -1,19 +1,5 @@
-# Текущая версия: Auralis 0.7.0
+# Auralis 0.7.0 — скачать
 
-[Windows](desktop/README.md) · [Android](android/README.md) · [Описание обновления](../docs/UPDATE_070.md) · [SHA-256](SHA256SUMS-0.7.0.txt). Готовые 0.7.0 EXE/APK сохранены локально; следующие ссылки относятся к прежнему публичному выпуску.
+[Windows EXE](https://github.com/Hollwestn/Auralis/releases/download/v0.7.0/Auralis-0.7.0.exe) · [Android APK](https://github.com/Hollwestn/Auralis/releases/download/v0.7.0/Auralis-Android-0.7.0-Preview.apk) · [Описание и SHA-256](https://github.com/Hollwestn/Auralis/releases/tag/v0.7.0).
 
-# Скачать Auralis
-
-Готовые приложения доступны в [GitHub Releases](https://github.com/inalinalinal2009-oss/Auralis/releases/tag/v0.6.2-preview). Папка `release` в исходниках содержит ссылки и вспомогательные файлы; установщики скачиваются отдельно.
-
-| Платформа | Скачать | Версия |
-|---|---|---|
-| Windows x64 | [Установщик EXE](https://github.com/inalinalinal2009-oss/Auralis/releases/download/v0.6.2-preview/Auralis-Setup.exe) · [Установщик MSI](https://github.com/inalinalinal2009-oss/Auralis/releases/download/v0.6.2-preview/Auralis-0.6.1.msi) | 0.6.1 |
-| Android arm64 | [Установочный APK](https://github.com/inalinalinal2009-oss/Auralis/releases/download/v0.6.2-preview/Auralis-Android-Test.apk) | 0.6.2 Preview |
-| Сервер | [Готовый архив](https://github.com/inalinalinal2009-oss/Auralis/releases/download/v0.6.2-preview/Auralis-Server-Internet.zip) | См. манифест |
-
-Windows-установщики превышают лимит GitHub 100 MiB на обычный файл репозитория, поэтому бинарные сборки размещены в Releases. Кнопка Code → Download ZIP скачивает исходники без установщиков.
-
-Android 0.6.2 содержит режим без аккаунта. Полная проверка нового локального импорта и воспроизведения на физическом телефоне пока не завершена.
-
-[Контрольные суммы](https://github.com/inalinalinal2009-oss/Auralis/releases/download/v0.6.2-preview/SHA256SUMS.txt) · [Инструкция Windows](../docs/WINDOWS_INSTALLATION.md) · [Инструкция Android](../docs/ANDROID_INSTALLATION.md)
+Java и FFmpeg включены в Windows-поставку. Android: ARM64, Android 7+, тестовая подпись. [Возможности 0.7.0](../docs/UPDATE_070.md).

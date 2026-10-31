@@ -3,7 +3,7 @@
 
 <img src="assets/brand/auralis-symbol/png/auralis-256.png" width="96" alt="Auralis" />
 
-# Auralis
+# Auralis 0.7.0
 
 ### У каждой песни есть гравитация.
 
@@ -11,7 +11,7 @@
 
 **Музыкальная платформа для Windows и Android с личной библиотекой, собственным сервером и графикой, которая слышит звук.**
 
-**Прежний публичный выпуск 0.6.2:** [Windows EXE](https://github.com/Hollwestn/Auralis/releases/download/v0.6.2-preview/Auralis-Setup.exe) · [Android APK — Preview](https://github.com/Hollwestn/Auralis/releases/download/v0.6.2-preview/Auralis-Android-Test.apk) · [Сервер ZIP](https://github.com/Hollwestn/Auralis/releases/download/v0.6.2-preview/Auralis-Server-Internet.zip)
+**Скачать 0.7.0:** [Windows EXE](https://github.com/Hollwestn/Auralis/releases/download/v0.7.0/Auralis-0.7.0.exe) · [Android APK](https://github.com/Hollwestn/Auralis/releases/download/v0.7.0/Auralis-Android-0.7.0-Preview.apk) · [Описание выпуска](https://github.com/Hollwestn/Auralis/releases/tag/v0.7.0)
 
 [Что скачать](docs/GITHUB_DOWNLOADS.md) · [Начать слушать](START_HERE.md) · [Без аккаунта](docs/MOBILE_OFFLINE_GUIDE.md) · [Свой сервер](docs/SERVER_INTERNET_GUIDE.md) · [Сборки](https://github.com/Hollwestn/Auralis/releases)
 
@@ -75,7 +75,7 @@ Auralis соединяет этот визуальный опыт с повсе�
 | Неразрушающий монтаж через FFmpeg | Поиск, история и локальная волна | PostgreSQL, Docker и HTTPS |
 | GPU-графика и режим 4K | Темы и GPU-визуализации | Доступ из разных сетей |
 
-Локальная библиотека Mobile появилась в **0.6.2**. APK собран и установлен; полный сценарий импорта и воспроизведения этой новой функции на физическом устройстве пока ожидает завершения проверки. Предыдущая 0.6.1 проверена на Samsung S21: вход, серверная музыка и восемь GPU-сцен. [Точные результаты](docs/MOBILE_TEST_REPORT.md).
+В **0.7.0** локальная библиотека получила нативные метаданные и обложки, таймер сна и умные подборки. Сервер и регистрация для локальной музыки не нужны. [Что изменилось](docs/UPDATE_070.md).
 
 ## Цвет — часть атмосферы
 
@@ -130,7 +130,7 @@ cd ../..
 
 ## Красота, которую можно проверить
 
-Для Desktop 0.6.1 прошли **55 Java-тестов** и **44 проверки интерфейса**. Для Mobile 0.6.2 прошли **17 Node-тестов**, TypeScript, ESLint и **3 нативных PCM-теста**; собран Android APK и экспортированы Android/iOS-бандлы.
+Для **0.7.0** прошли 60 Java-тестов, 19 мобильных тестов, TypeScript и ESLint. Запуск переносимой Windows-сборки проверен; её 54 скомпилированных класса совпали с сохранённой поставкой. Оригинальные установщики сверены по SHA-256. APK требует проверки на физическом телефоне; iOS представлен исходниками без готового IPA. [Результаты и ограничения](docs/ROLLBACK_070.md).
 
 Готовность, ограничения и результаты запуска описаны в [отчёте](TEST_REPORT.md). iOS представлен исходниками: IPA требует Mac и подписи. Мобильные EQ и монтаж пока не реализованы. Режим 4K зависит от GPU и не означает гарантированные 60 FPS.
 
